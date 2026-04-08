@@ -23,6 +23,9 @@ dev = [
 [tool.setuptools]
 py-modules = []
 
+[tool.setuptools.packages.find]
+include = ["api*", "evaluator*", "policy*", "services*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

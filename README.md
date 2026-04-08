@@ -18,7 +18,7 @@ Initial scaffold is in place:
 - FastAPI app skeleton
 - domain packages for evaluation and policy logic
 - test harness
-- lightweight CI
+- lightweight CI and security checks
 
 The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 
@@ -52,3 +52,14 @@ Run tests:
 ```bash
 pytest
 ```
+
+## CI And Security
+
+The repository currently uses a lightweight GitHub Actions setup:
+
+- `ruff` linting
+- `pytest`
+- dependency review on pull requests
+- CodeQL scanning on pull requests to `main`, pushes to `main`, and a weekly schedule
+
+Repository-level GitHub features such as secret scanning and Dependabot alerts should also be enabled in repo settings.
