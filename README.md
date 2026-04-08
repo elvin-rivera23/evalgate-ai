@@ -59,7 +59,6 @@ The repository currently uses a lightweight GitHub Actions setup:
 
 - `ruff` linting
 - `pytest`
-- dependency review on pull requests
-- CodeQL scanning on pull requests to `main`, pushes to `main`, and a weekly schedule
+- `pip-audit` for Python dependency vulnerability checks
 
-Repository-level GitHub features such as secret scanning and Dependabot alerts should also be enabled in repo settings.
+For a private repository, this keeps the security checks in the free CI path instead of depending on GitHub Advanced Security features.
