@@ -15,6 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+
   lint:
     runs-on: ubuntu-latest
     steps:
