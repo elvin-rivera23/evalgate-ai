@@ -15,8 +15,9 @@ The repository is being built as internal platform tooling for release engineeri
 
 Initial scaffold is in place:
 
-- FastAPI app skeleton
-- domain packages for evaluation and policy logic
+- FastAPI app plus `POST /releases/evaluate`
+- deterministic sample baseline and candidate services
+- fixture-driven evaluator and threshold policy logic
 - test harness
 - lightweight CI and security checks
 
@@ -45,6 +46,18 @@ Run the API locally:
 
 ```bash
 uvicorn api.main:app --reload
+```
+
+Run a sample evaluation:
+
+```bash
+curl -X POST http://127.0.0.1:8000/releases/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "baseline": {"release_id": "baseline"},
+    "candidate": {"release_id": "candidate-bad"},
+    "policy": "default"
+  }'
 ```
 
 Run tests:
