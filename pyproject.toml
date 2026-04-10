@@ -24,7 +24,7 @@ dev = [
 py-modules = []
 
 [tool.setuptools.packages.find]
-include = ["api*", "evaluator*", "policy*", "services*"]
+include = ["api*", "evaluator*", "policy*", "reporting*", "services*"]
 
 [tool.ruff]
 line-length = 100

@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from api.schemas import EvaluationRequest, EvaluationResponse, HealthResponse
 from evaluator.runner import evaluate_release
 from policy.engine import evaluate_release_policy
+from reporting.store import save_report
 
 app = FastAPI(title="EvalGate AI", version="0.1.0")
 
@@ -27,7 +28,7 @@ def evaluate_release_pair(request: EvaluationRequest) -> EvaluationResponse:
         candidate=candidate_metrics,
     )
 
-    return EvaluationResponse(
+    response = EvaluationResponse(
         report_id=decision.report_id,
         decision=decision.decision,
         summary=decision.summary,
@@ -36,3 +37,6 @@ def evaluate_release_pair(request: EvaluationRequest) -> EvaluationResponse:
         candidate_metrics=decision.candidate_metrics,
         deltas=decision.deltas,
     )
+
+    save_report(response.report_id, response.model_dump())
+    return response

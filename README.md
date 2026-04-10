@@ -76,3 +76,9 @@ The repository currently uses a lightweight GitHub Actions setup:
 - CodeQL scanning on pull requests to `main`, pushes to `main`, and a weekly schedule
 
 Repository-level GitHub features such as secret scanning and Dependabot alerts should also be enabled in repo settings.
+
+## Reports
+
+Each evaluation run now persists a machine-readable JSON report to `reports/<report_id>.json`.
+
+That artifact is intended to be the audit trail for CI and operator workflows.

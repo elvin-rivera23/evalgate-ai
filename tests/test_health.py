@@ -1,6 +1,9 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from api.main import app
+from reporting import store
 
 client = TestClient(app)
 
@@ -49,3 +52,23 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+
+
+def test_evaluate_release_persists_json_report(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    report_path = tmp_path / f"{payload['report_id']}.json"
+
+    assert report_path.exists()
+    assert json.loads(report_path.read_text()) == payload
