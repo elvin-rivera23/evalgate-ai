@@ -13,6 +13,9 @@ dependencies = [
   "uvicorn>=0.30.0,<1.0.0",
 ]
 
+[project.scripts]
+evalgate = "evalgate.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0.0,<9.0.0",
@@ -24,7 +27,7 @@ dev = [
 py-modules = []
 
 [tool.setuptools.packages.find]
-include = ["api*", "evaluator*", "policy*", "reporting*", "services*"]
+include = ["api*", "evalgate*", "evaluator*", "policy*", "reporting*", "services*"]
 
 [tool.ruff]
 line-length = 100

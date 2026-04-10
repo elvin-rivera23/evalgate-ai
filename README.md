@@ -66,6 +66,14 @@ Run tests:
 pytest
 ```
 
+Run a local CLI evaluation:
+
+```bash
+evalgate --baseline baseline --candidate candidate-good --policy default
+```
+
+The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
+
 ## CI And Security
 
 The repository currently uses a lightweight GitHub Actions setup:
