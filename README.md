@@ -66,14 +66,29 @@ Run tests:
 pytest
 ```
 
+Run a local CLI evaluation:
+
+```bash
+evalgate --baseline baseline --candidate candidate-good --policy default
+```
+
+The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
+
 ## CI And Security
 
 The repository currently uses a lightweight GitHub Actions setup:
 
 - `ruff` linting
 - `pytest`
+- `gitleaks` secret scanning
 - dependency review on pull requests
 - CodeQL scanning on pull requests to `main`, pushes to `main`, and a weekly schedule
+
+You can also run a local secret scan before pushing:
+
+```bash
+gitleaks git .
+```
 
 Repository-level GitHub features such as secret scanning and Dependabot alerts should also be enabled in repo settings.
 

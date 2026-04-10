@@ -3,6 +3,8 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from evalgate.errors import UnknownReleaseError
+
 
 class InferenceRequest(BaseModel):
     case_id: str
@@ -44,5 +46,5 @@ def create_service_app(release_id: str) -> FastAPI:
 
 def get_service_app(release_id: str) -> FastAPI:
     if release_id not in SERVICE_RESPONSES:
-        raise ValueError(f"Unknown release_id: {release_id}")
+        raise UnknownReleaseError(release_id)
     return create_service_app(release_id)
