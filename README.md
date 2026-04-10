@@ -80,8 +80,15 @@ The repository currently uses a lightweight GitHub Actions setup:
 
 - `ruff` linting
 - `pytest`
+- `gitleaks` secret scanning
 - dependency review on pull requests
 - CodeQL scanning on pull requests to `main`, pushes to `main`, and a weekly schedule
+
+You can also run a local secret scan before pushing:
+
+```bash
+gitleaks git .
+```
 
 Repository-level GitHub features such as secret scanning and Dependabot alerts should also be enabled in repo settings.
 
