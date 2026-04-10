@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sysconfig
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -164,9 +165,13 @@ def test_cli_rejects_unknown_release(capsys) -> None:
 
 
 def test_installed_cli_command_runs_successfully(tmp_path, monkeypatch) -> None:
+    cli_path = Path(sysconfig.get_path("scripts")) / "evalgate"
+
+    assert cli_path.exists()
+
     result = subprocess.run(
         [
-            ".venv/bin/evalgate",
+            str(cli_path),
             "--baseline",
             "baseline",
             "--candidate",
