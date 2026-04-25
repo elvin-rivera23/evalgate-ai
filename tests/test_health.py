@@ -9,11 +9,18 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from evalgate.cli import main as cli_main
+from evalgate.validation import validate_config
 from evaluator.fixtures import load_eval_cases
 from evaluator.runner import evaluate_release_with_results
+from policy.models import PolicyProfile, PolicyThresholds
 from reporting import store
 from services.adapters import DeterministicReleaseService
-from services.registry import get_release_definition, load_release_registry
+from services.registry import (
+    ReleaseDefinition,
+    ReleaseResponse,
+    get_release_definition,
+    load_release_registry,
+)
 
 client = TestClient(app)
 
@@ -355,6 +362,68 @@ def test_evaluator_accepts_inference_service_adapter() -> None:
     assert len(evaluation.results) == 6
     assert evaluation.metrics.quality_score == 1.0
     assert evaluation.metrics.cost_proxy > 2.0
+
+
+def test_validate_config_accepts_current_configuration() -> None:
+    assert validate_config() == []
+
+
+def test_validate_config_rejects_release_with_missing_case(monkeypatch) -> None:
+    cases = load_eval_cases()
+    incomplete_responses = {
+        case.case_id: ReleaseResponse(answer="ok", latency_ms=1.0, cost_units=1.0)
+        for case in cases[:-1]
+    }
+
+    monkeypatch.setattr(
+        "evalgate.validation.load_release_registry",
+        lambda: {
+            "candidate-incomplete": ReleaseDefinition(
+                release_id="candidate-incomplete",
+                responses=incomplete_responses,
+            )
+        },
+    )
+
+    errors = validate_config()
+
+    assert errors == ["Release candidate-incomplete is missing responses for: case-006."]
+
+
+def test_validate_config_rejects_negative_policy_threshold(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "evalgate.validation.load_policy_profiles",
+        lambda: {
+            "bad-policy": PolicyProfile(
+                name="bad-policy",
+                description="Invalid policy.",
+                thresholds=PolicyThresholds(max_latency_increase_pct=-0.1),
+            )
+        },
+    )
+
+    errors = validate_config()
+
+    assert "Policy bad-policy threshold max_latency_increase_pct is negative." in errors
+
+
+def test_cli_validates_config_successfully(capsys) -> None:
+    exit_code = cli_main(["--validate-config"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "config: valid\n"
+    assert captured.err == ""
+
+
+def test_cli_rejects_missing_evaluation_arguments(capsys) -> None:
+    exit_code = cli_main(["--baseline", "baseline"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "--baseline and --candidate are required" in captured.err
 
 
 def test_cli_promotes_and_prints_report_path(tmp_path, monkeypatch, capsys) -> None:

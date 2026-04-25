@@ -87,6 +87,14 @@ evalgate --baseline baseline --candidate candidate-good --policy default
 
 The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
 
+Validate local EvalGate configuration:
+
+```bash
+evalgate --validate-config
+```
+
+The validation command checks evaluation fixtures, release definitions, aliases, and policy thresholds before a release evaluation runs.
+
 ## CI Release Gate
 
 EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.
