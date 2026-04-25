@@ -4,7 +4,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from evalgate.errors import UnknownReleaseError
-from services.registry import get_release_definition
+from evaluator.fixtures import EvalCase
+from services.adapters import get_inference_service
 
 
 class InferenceRequest(BaseModel):
@@ -13,18 +14,27 @@ class InferenceRequest(BaseModel):
 
 
 def create_service_app(release_id: str) -> FastAPI:
-    release = get_release_definition(release_id)
+    service = get_inference_service(release_id)
     app = FastAPI(title=f"EvalGate service: {release_id}")
 
     @app.post("/infer")
     def infer(request: InferenceRequest) -> dict[str, float | str]:
-        payload = release.responses.get(request.case_id)
-        if payload is None:
+        try:
+            result = service.infer(
+                EvalCase(
+                    case_id=request.case_id,
+                    risk_category="unknown",
+                    severity="unknown",
+                    prompt=request.prompt,
+                    expected_answer="unknown",
+                )
+            )
+        except UnknownReleaseError:
             raise HTTPException(status_code=404, detail="Unknown fixture case.")
         return {
-            "answer": payload.answer,
-            "latency_ms": payload.latency_ms,
-            "cost_units": payload.cost_units,
+            "answer": result.answer,
+            "latency_ms": result.latency_ms,
+            "cost_units": result.cost_units,
         }
 
     return app
@@ -32,7 +42,7 @@ def create_service_app(release_id: str) -> FastAPI:
 
 def get_service_app(release_id: str) -> FastAPI:
     try:
-        get_release_definition(release_id)
+        get_inference_service(release_id)
     except UnknownReleaseError:
         raise UnknownReleaseError(release_id)
     return create_service_app(release_id)

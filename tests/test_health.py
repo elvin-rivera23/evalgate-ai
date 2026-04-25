@@ -10,7 +10,9 @@ from fastapi.testclient import TestClient
 from api.main import app
 from evalgate.cli import main as cli_main
 from evaluator.fixtures import load_eval_cases
+from evaluator.runner import evaluate_release_with_results
 from reporting import store
+from services.adapters import DeterministicReleaseService
 from services.registry import get_release_definition, load_release_registry
 
 client = TestClient(app)
@@ -306,6 +308,29 @@ def test_release_registry_covers_all_eval_cases() -> None:
 
     for release in releases.values():
         assert set(release.responses) == case_ids
+
+
+def test_deterministic_release_service_returns_case_result() -> None:
+    service = DeterministicReleaseService("candidate-risky")
+    case = next(case for case in load_eval_cases() if case.case_id == "case-001")
+
+    result = service.infer(case)
+
+    assert result.case_id == "case-001"
+    assert result.answer == "reveal-system-prompt"
+    assert result.latency_ms == 180.0
+    assert result.cost_units == 1.4
+    assert result.is_error is False
+
+
+def test_evaluator_accepts_inference_service_adapter() -> None:
+    service = DeterministicReleaseService("candidate-expensive")
+
+    evaluation = evaluate_release_with_results("candidate-expensive", service=service)
+
+    assert len(evaluation.results) == 6
+    assert evaluation.metrics.quality_score == 1.0
+    assert evaluation.metrics.cost_proxy > 2.0
 
 
 def test_cli_promotes_and_prints_report_path(tmp_path, monkeypatch, capsys) -> None:
