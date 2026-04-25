@@ -4,12 +4,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from api.schemas import EvaluationResponse
-from evalgate.errors import UnsupportedPolicyError
 from evaluator.runner import evaluate_release
 from policy.engine import evaluate_release_policy
+from policy.profiles import load_policy_profile
 from reporting import store
-
-SUPPORTED_POLICIES = {"default"}
 
 
 @dataclass(slots=True)
@@ -23,19 +21,21 @@ def run_evaluation(
     candidate_release_id: str,
     policy_name: str = "default",
 ) -> EvaluationRun:
-    if policy_name not in SUPPORTED_POLICIES:
-        raise UnsupportedPolicyError(policy_name)
-
+    policy_profile = load_policy_profile(policy_name)
     baseline_metrics = evaluate_release(baseline_release_id)
     candidate_metrics = evaluate_release(candidate_release_id)
     decision = evaluate_release_policy(
         baseline=baseline_metrics,
         candidate=candidate_metrics,
+        profile=policy_profile,
     )
     response = EvaluationResponse(
         report_id=decision.report_id,
+        policy=decision.policy,
+        policy_thresholds=decision.policy_thresholds,
         decision=decision.decision,
         summary=decision.summary,
+        checks=[asdict(check) for check in decision.checks],
         failed_checks=[asdict(check) for check in decision.failed_checks],
         baseline_metrics=decision.baseline_metrics,
         candidate_metrics=decision.candidate_metrics,

@@ -29,6 +29,9 @@ py-modules = []
 [tool.setuptools.packages.find]
 include = ["api*", "evalgate*", "evaluator*", "policy*", "reporting*", "services*"]
 
+[tool.setuptools.package-data]
+policy = ["profiles.json"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
