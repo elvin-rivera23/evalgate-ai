@@ -26,18 +26,18 @@ EvalGate AI turns those concerns into an explicit gate that can be used locally 
 5. A decision report is generated and persisted.
 6. CI or an operator acts on the result.
 
-## MVP Scope
+## Current Scope
 
 - FastAPI orchestration service
-- deterministic fixture-driven evaluator
+- deterministic AI-risk fixture evaluator
 - comparator and policy engine
 - persisted JSON reports
 - CLI entrypoint for CI
-- one passing and one blocked demo scenario
+- passing and blocked release scenarios
 
 ## What This Repo Optimizes For
 
 - clarity of release logic
-- deterministic demo behavior
-- portability as a hiring signal for platform, DevOps, and MLOps roles
-- a repo that reads like internal tooling rather than an AI toy
+- deterministic CI behavior
+- portable local and CI execution
+- release tooling that can be adapted to model-backed services
