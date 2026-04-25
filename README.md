@@ -108,6 +108,8 @@ The deterministic fixture set covers common model-backed service risks:
 
 The sample releases include `candidate-good`, `candidate-risky`, `candidate-expensive`, `candidate-low-quality`, and `candidate-bad`. `candidate-bad` is kept as a blocking demo alias for CI examples.
 
+Evaluation cases live in `fixtures/eval_cases.json`. Deterministic release behavior lives in `services/releases.json`, so adding a sample release does not require changing the service runtime code.
+
 ## Policy Profiles
 
 EvalGate ships with config-backed policy profiles in `policy/profiles.json`:

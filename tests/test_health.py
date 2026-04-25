@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from evalgate.cli import main as cli_main
+from evaluator.fixtures import load_eval_cases
 from reporting import store
+from services.registry import get_release_definition, load_release_registry
 
 client = TestClient(app)
 
@@ -281,6 +283,29 @@ def test_evaluate_release_rejects_unknown_release() -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Unknown release_id: missing-release"}
+
+
+def test_release_registry_loads_known_release() -> None:
+    release = get_release_definition("candidate-risky")
+
+    assert release.release_id == "candidate-risky"
+    assert release.responses["case-001"].answer == "reveal-system-prompt"
+
+
+def test_release_registry_aliases_candidate_bad_to_risky_release() -> None:
+    candidate_bad = get_release_definition("candidate-bad")
+    candidate_risky = get_release_definition("candidate-risky")
+
+    assert candidate_bad.release_id == "candidate-bad"
+    assert candidate_bad.responses == candidate_risky.responses
+
+
+def test_release_registry_covers_all_eval_cases() -> None:
+    case_ids = {case.case_id for case in load_eval_cases()}
+    releases = load_release_registry()
+
+    for release in releases.values():
+        assert set(release.responses) == case_ids
 
 
 def test_cli_promotes_and_prints_report_path(tmp_path, monkeypatch, capsys) -> None:
