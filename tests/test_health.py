@@ -53,7 +53,7 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
         "/releases/evaluate",
         json={
             "baseline": {"release_id": "baseline"},
-            "candidate": {"release_id": "candidate-bad"},
+            "candidate": {"release_id": "candidate-risky"},
             "policy": "default",
         },
     )
@@ -68,6 +68,63 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+
+
+def test_evaluate_release_keeps_candidate_bad_as_blocking_demo_alias() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["decision"] == "block"
+    assert payload["metadata"]["candidate_release_id"] == "candidate-bad"
+    assert (
+        payload["candidate_metrics"]["quality_score"]
+        < payload["baseline_metrics"]["quality_score"]
+    )
+
+
+def test_evaluate_release_blocks_expensive_candidate_on_cost() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-expensive"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    failed_metrics = {check["metric"] for check in payload["failed_checks"]}
+    assert payload["decision"] == "block"
+    assert failed_metrics == {"cost_proxy"}
+
+
+def test_evaluate_release_blocks_low_quality_candidate_on_quality() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-low-quality"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    failed_metrics = {check["metric"] for check in payload["failed_checks"]}
+    assert payload["decision"] == "block"
+    assert failed_metrics == {"quality_score"}
 
 
 def test_evaluate_release_blocks_good_candidate_with_strict_policy() -> None:

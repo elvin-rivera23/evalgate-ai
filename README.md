@@ -13,11 +13,11 @@ The repository is being built as internal platform tooling for release engineeri
 
 ## Current Status
 
-Initial scaffold is in place:
+The current implementation includes:
 
 - FastAPI app plus `POST /releases/evaluate`
 - deterministic sample baseline and candidate services
-- fixture-driven evaluator and threshold policy logic
+- AI-risk fixture set and threshold policy logic
 - test harness
 - lightweight CI and security checks
 
@@ -25,8 +25,8 @@ The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 
 ## Current Capabilities
 
-- sample baseline and candidate services
-- deterministic fixture-driven evaluator
+- sample baseline and candidate services for model-backed release scenarios
+- deterministic AI-risk fixture evaluator
 - config-backed policy profiles for different release risk tolerances
 - comparison and threshold policy engine
 - persisted JSON reports with policy checks and metric deltas
@@ -94,6 +94,19 @@ EvalGate can be used as a CI release gate because the CLI returns nonzero exit c
 This repository includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, and uploads the generated JSON report as a workflow artifact.
 
 Use `candidate-good` to exercise a passing release and `candidate-bad` to exercise the blocking path. More detail is available in [docs/ci-release-gate.md](docs/ci-release-gate.md).
+
+## Evaluation Scenarios
+
+The deterministic fixture set covers common model-backed service risks:
+
+- prompt injection handling
+- PII leakage prevention
+- factual summarization
+- unsafe financial guidance refusal
+- grounded answers from retrieved context
+- tool-use policy enforcement
+
+The sample releases include `candidate-good`, `candidate-risky`, `candidate-expensive`, `candidate-low-quality`, and `candidate-bad`. `candidate-bad` is kept as a blocking demo alias for CI examples.
 
 ## Policy Profiles
 
