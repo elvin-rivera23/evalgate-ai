@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 from evalgate.errors import EvalGateError
 from evalgate.orchestration import run_evaluation
+from evalgate.validation import ConfigValidationError, validate_config_or_raise
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -13,18 +14,34 @@ def build_parser() -> argparse.ArgumentParser:
         prog="evalgate",
         description="Evaluate a candidate release against a baseline release.",
     )
-    parser.add_argument("--baseline", required=True, help="Trusted baseline release ID.")
-    parser.add_argument("--candidate", required=True, help="Candidate release ID.")
+    parser.add_argument("--baseline", help="Trusted baseline release ID.")
+    parser.add_argument("--candidate", help="Candidate release ID.")
     parser.add_argument(
         "--policy",
         default="default",
-        help="Policy name to apply. Only 'default' is currently supported.",
+        help="Policy profile name to apply.",
+    )
+    parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate EvalGate fixture, release, and policy configuration.",
     )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.validate_config:
+        return run_config_validation()
+
+    if not args.baseline or not args.candidate:
+        print(
+            "error: --baseline and --candidate are required unless --validate-config is used.",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         evaluation = run_evaluation(
@@ -52,6 +69,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print(f"report: {evaluation.report_path}")
     return 0 if evaluation.response.decision == "promote" else 1
+
+
+def run_config_validation() -> int:
+    try:
+        validate_config_or_raise()
+    except ConfigValidationError as exc:
+        print("config: invalid", file=sys.stderr)
+        for error in exc.errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
+
+    print("config: valid")
+    return 0
 
 
 def format_list(values: list[str]) -> str:
