@@ -119,4 +119,11 @@ Repository-level GitHub features such as secret scanning and Dependabot alerts s
 
 Each evaluation run now persists a machine-readable JSON report to `reports/<report_id>.json`.
 
-That artifact is intended to be the audit trail for CI and operator workflows.
+That artifact is intended to be the audit trail for CI and operator workflows. The top-level report shape is stable and includes:
+
+- `report_id`: unique report identifier
+- `metadata`: creation timestamp, baseline release, candidate release, policy, and EvalGate version
+- `policy` and `policy_thresholds`: the policy profile and threshold snapshot used for the run
+- `decision` and `summary`: final promote/block result
+- `checks` and `failed_checks`: full policy check output and the subset that failed
+- `baseline_metrics`, `candidate_metrics`, and `deltas`: measured release comparison
