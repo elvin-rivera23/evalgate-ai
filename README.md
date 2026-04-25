@@ -32,6 +32,7 @@ The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 - persisted JSON reports with policy checks and metric deltas
 - FastAPI endpoint for service integration
 - CLI entrypoint for local runs and CI
+- manual GitHub Actions release-gate workflow
 - passing and blocked demo release paths
 
 ## Development
@@ -85,6 +86,14 @@ evalgate --baseline baseline --candidate candidate-good --policy default
 ```
 
 The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
+
+## CI Release Gate
+
+EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.
+
+This repository includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, and uploads the generated JSON report as a workflow artifact.
+
+Use `candidate-good` to exercise a passing release and `candidate-bad` to exercise the blocking path. More detail is available in [docs/ci-release-gate.md](docs/ci-release-gate.md).
 
 ## Policy Profiles
 
