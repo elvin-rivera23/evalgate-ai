@@ -31,6 +31,7 @@ include = ["api*", "evalgate*", "evaluator*", "policy*", "reporting*", "services
 
 [tool.setuptools.package-data]
 policy = ["profiles.json"]
+services = ["releases.json"]
 
 [tool.ruff]
 line-length = 100
