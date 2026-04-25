@@ -36,10 +36,20 @@ The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 
 Install dependencies:
 
+PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+```
+
+macOS/Linux:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 ```
 
 Run the API locally:

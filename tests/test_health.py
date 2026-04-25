@@ -165,7 +165,8 @@ def test_cli_rejects_unknown_release(capsys) -> None:
 
 
 def test_installed_cli_command_runs_successfully(tmp_path, monkeypatch) -> None:
-    cli_path = Path(sysconfig.get_path("scripts")) / "evalgate"
+    cli_name = f"evalgate{sysconfig.get_config_var('EXE') or ''}"
+    cli_path = Path(sysconfig.get_path("scripts")) / cli_name
 
     assert cli_path.exists()
 
