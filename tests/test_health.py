@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sysconfig
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -32,6 +33,12 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     assert response.status_code == 200
     payload = response.json()
 
+    assert payload["metadata"]["baseline_release_id"] == "baseline"
+    assert payload["metadata"]["candidate_release_id"] == "candidate-good"
+    assert payload["metadata"]["policy"] == "default"
+    assert payload["metadata"]["evalgate_version"] == "0.1.0"
+    created_at = datetime.fromisoformat(payload["metadata"]["created_at"].replace("Z", "+00:00"))
+    assert created_at.tzinfo == UTC
     assert payload["decision"] == "promote"
     assert payload["policy"] == "default"
     assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.15
@@ -120,6 +127,43 @@ def test_evaluate_release_persists_json_report(tmp_path, monkeypatch) -> None:
 
     assert report_path.exists()
     assert json.loads(report_path.read_text()) == payload
+
+
+def test_evaluation_report_top_level_schema_is_stable(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert set(payload) == {
+        "report_id",
+        "metadata",
+        "policy",
+        "policy_thresholds",
+        "decision",
+        "summary",
+        "checks",
+        "failed_checks",
+        "baseline_metrics",
+        "candidate_metrics",
+        "deltas",
+    }
+    assert set(payload["metadata"]) == {
+        "created_at",
+        "baseline_release_id",
+        "candidate_release_id",
+        "policy",
+        "evalgate_version",
+    }
 
 
 def test_evaluate_release_rejects_unsupported_policy() -> None:

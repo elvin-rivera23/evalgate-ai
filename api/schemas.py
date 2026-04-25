@@ -15,6 +15,14 @@ class HealthResponse(BaseModel):
     status: str
 
 
+class EvaluationMetadata(BaseModel):
+    created_at: str
+    baseline_release_id: str
+    candidate_release_id: str
+    policy: str
+    evalgate_version: str
+
+
 class FailedCheck(BaseModel):
     metric: str
     baseline: float
@@ -39,6 +47,7 @@ class EvaluationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     report_id: str
+    metadata: EvaluationMetadata
     policy: str
     policy_thresholds: dict[str, float]
     decision: str
