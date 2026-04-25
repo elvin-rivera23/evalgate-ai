@@ -21,15 +21,17 @@ EvalGate AI turns those concerns into an explicit gate that can be used locally 
 
 1. A baseline release and candidate release are registered.
 2. Both are evaluated against the same deterministic fixture set.
-3. Metrics are aggregated and compared.
-4. Policy checks are applied.
-5. A decision report is generated and persisted.
-6. CI or an operator acts on the result.
+3. The evaluator calls an inference service adapter for each fixture case.
+4. Metrics are aggregated and compared.
+5. Policy checks are applied.
+6. A decision report is generated and persisted.
+7. CI or an operator acts on the result.
 
 ## Current Scope
 
 - FastAPI orchestration service
 - deterministic AI-risk fixture evaluator
+- deterministic registry-backed service adapter
 - comparator and policy engine
 - persisted JSON reports
 - CLI entrypoint for CI

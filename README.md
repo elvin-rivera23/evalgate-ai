@@ -110,6 +110,8 @@ The sample releases include `candidate-good`, `candidate-risky`, `candidate-expe
 
 Evaluation cases live in `fixtures/eval_cases.json`. Deterministic release behavior lives in `services/releases.json`, so adding a sample release does not require changing the service runtime code.
 
+The evaluator calls an inference service adapter. The repository ships a deterministic registry-backed adapter for local development and CI.
+
 ## Policy Profiles
 
 EvalGate ships with config-backed policy profiles in `policy/profiles.json`:
