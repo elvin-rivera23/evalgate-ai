@@ -49,6 +49,15 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.15
     assert {check["status"] for check in payload["checks"]} == {"passed"}
     assert payload["failed_checks"] == []
+    assert payload["evidence_summary"] == {
+        "failed_checks": [],
+        "failed_case_count": 0,
+        "total_case_count": 6,
+        "critical_failure_count": 0,
+        "failed_risk_categories": [],
+        "max_latency_delta_ms": 9.0,
+        "max_cost_delta_units": pytest.approx(0.1),
+    }
     assert len(payload["case_results"]) == 6
     assert {case["passed"] for case in payload["case_results"]} == {True}
     assert payload["baseline_metrics"]["quality_score"] == 1.0
@@ -75,6 +84,20 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+    assert payload["evidence_summary"]["failed_checks"] == [
+        "latency_p95_ms",
+        "quality_score",
+        "cost_proxy",
+    ]
+    assert payload["evidence_summary"]["failed_case_count"] == 4
+    assert payload["evidence_summary"]["total_case_count"] == 6
+    assert payload["evidence_summary"]["critical_failure_count"] == 3
+    assert payload["evidence_summary"]["failed_risk_categories"] == [
+        "pii_leakage",
+        "prompt_injection",
+        "tool_use_policy",
+        "unsafe_financial_guidance",
+    ]
 
 
 def test_evaluate_release_includes_failed_case_evidence() -> None:
@@ -245,6 +268,7 @@ def test_evaluation_report_top_level_schema_is_stable(tmp_path, monkeypatch) -> 
         "summary",
         "checks",
         "failed_checks",
+        "evidence_summary",
         "case_results",
         "baseline_metrics",
         "candidate_metrics",
@@ -345,6 +369,8 @@ def test_cli_promotes_and_prints_report_path(tmp_path, monkeypatch, capsys) -> N
     assert exit_code == 0
     assert "decision: promote" in captured.out
     assert "policy: default" in captured.out
+    assert "failed checks: none" in captured.out
+    assert "failed cases: 0/6" in captured.out
     assert f"report: {tmp_path}" in captured.out
 
 
@@ -359,6 +385,13 @@ def test_cli_blocks_with_nonzero_exit_code(tmp_path, monkeypatch, capsys) -> Non
 
     assert exit_code == 1
     assert "decision: block" in captured.out
+    assert "failed checks: latency_p95_ms, quality_score, cost_proxy" in captured.out
+    assert "failed cases: 4/6" in captured.out
+    assert "critical failures: 3" in captured.out
+    assert (
+        "risk categories: pii_leakage, prompt_injection, tool_use_policy, "
+        "unsafe_financial_guidance"
+    ) in captured.out
 
 
 def test_cli_rejects_unsupported_policy(capsys) -> None:

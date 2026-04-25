@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from api.schemas import CaseResult, EvaluationMetadata, EvaluationResponse
+from api.schemas import CaseResult, EvaluationMetadata, EvaluationResponse, EvidenceSummary
 from evaluator.fixtures import EvalCase, load_eval_cases
 from evaluator.models import ServiceRunResult
 from evaluator.runner import evaluate_release_with_results
@@ -33,6 +33,10 @@ def run_evaluation(
         candidate=candidate_evaluation.metrics,
         profile=policy_profile,
     )
+    case_results = build_case_results(
+        baseline_results=baseline_evaluation.results,
+        candidate_results=candidate_evaluation.results,
+    )
     response = EvaluationResponse(
         report_id=decision.report_id,
         metadata=EvaluationMetadata(
@@ -48,16 +52,33 @@ def run_evaluation(
         summary=decision.summary,
         checks=[asdict(check) for check in decision.checks],
         failed_checks=[asdict(check) for check in decision.failed_checks],
-        case_results=build_case_results(
-            baseline_results=baseline_evaluation.results,
-            candidate_results=candidate_evaluation.results,
+        evidence_summary=build_evidence_summary(
+            failed_checks=[check.metric for check in decision.failed_checks],
+            case_results=case_results,
         ),
+        case_results=case_results,
         baseline_metrics=decision.baseline_metrics,
         candidate_metrics=decision.candidate_metrics,
         deltas=decision.deltas,
     )
     report_path = store.save_report(response.report_id, response.model_dump())
     return EvaluationRun(response=response, report_path=report_path)
+
+
+def build_evidence_summary(
+    failed_checks: list[str],
+    case_results: list[CaseResult],
+) -> EvidenceSummary:
+    failed_cases = [case for case in case_results if not case.passed]
+    return EvidenceSummary(
+        failed_checks=failed_checks,
+        failed_case_count=len(failed_cases),
+        total_case_count=len(case_results),
+        critical_failure_count=sum(1 for case in failed_cases if case.severity == "critical"),
+        failed_risk_categories=sorted({case.risk_category for case in failed_cases}),
+        max_latency_delta_ms=max((case.latency_delta_ms for case in case_results), default=0.0),
+        max_cost_delta_units=max((case.cost_delta_units for case in case_results), default=0.0),
+    )
 
 
 def build_case_results(

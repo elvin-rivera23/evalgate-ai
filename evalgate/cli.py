@@ -39,8 +39,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"decision: {evaluation.response.decision}")
     print(f"policy: {evaluation.response.policy}")
     print(f"summary: {evaluation.response.summary}")
+    print(f"failed checks: {format_list(evaluation.response.evidence_summary.failed_checks)}")
+    print(
+        "failed cases: "
+        f"{evaluation.response.evidence_summary.failed_case_count}/"
+        f"{evaluation.response.evidence_summary.total_case_count}"
+    )
+    print(f"critical failures: {evaluation.response.evidence_summary.critical_failure_count}")
+    print(
+        "risk categories: "
+        f"{format_list(evaluation.response.evidence_summary.failed_risk_categories)}"
+    )
     print(f"report: {evaluation.report_path}")
     return 0 if evaluation.response.decision == "promote" else 1
+
+
+def format_list(values: list[str]) -> str:
+    if not values:
+        return "none"
+    return ", ".join(values)
 
 
 if __name__ == "__main__":
