@@ -37,6 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     print(f"decision: {evaluation.response.decision}")
+    print(f"policy: {evaluation.response.policy}")
     print(f"summary: {evaluation.response.summary}")
     print(f"report: {evaluation.report_path}")
     return 0 if evaluation.response.decision == "promote" else 1

@@ -1,0 +1,38 @@
+{
+  "default": {
+    "description": "Balanced release gate for general model-backed services.",
+    "thresholds": {
+      "max_latency_increase_pct": 0.15,
+      "max_error_rate_increase_abs": 0.02,
+      "max_quality_drop_pct": 0.03,
+      "max_cost_increase_pct": 0.2
+    }
+  },
+  "strict": {
+    "description": "Tighter release gate for high-risk services where regressions need early review.",
+    "thresholds": {
+      "max_latency_increase_pct": 0.05,
+      "max_error_rate_increase_abs": 0.0,
+      "max_quality_drop_pct": 0.0,
+      "max_cost_increase_pct": 0.05
+    }
+  },
+  "cost-sensitive": {
+    "description": "Release gate for high-volume services where cost regressions are operationally risky.",
+    "thresholds": {
+      "max_latency_increase_pct": 0.15,
+      "max_error_rate_increase_abs": 0.02,
+      "max_quality_drop_pct": 0.03,
+      "max_cost_increase_pct": 0.05
+    }
+  },
+  "quality-critical": {
+    "description": "Release gate for user-facing or safety-sensitive workflows where quality cannot drop.",
+    "thresholds": {
+      "max_latency_increase_pct": 0.15,
+      "max_error_rate_increase_abs": 0.01,
+      "max_quality_drop_pct": 0.0,
+      "max_cost_increase_pct": 0.2
+    }
+  }
+}

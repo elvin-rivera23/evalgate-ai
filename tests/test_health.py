@@ -33,6 +33,9 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     payload = response.json()
 
     assert payload["decision"] == "promote"
+    assert payload["policy"] == "default"
+    assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.15
+    assert {check["status"] for check in payload["checks"]} == {"passed"}
     assert payload["failed_checks"] == []
     assert payload["baseline_metrics"]["quality_score"] == 1.0
     assert payload["candidate_metrics"]["quality_score"] == 1.0
@@ -53,9 +56,50 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
 
     failed_metrics = {check["metric"] for check in payload["failed_checks"]}
     assert payload["decision"] == "block"
+    assert payload["policy"] == "default"
+    assert len(payload["checks"]) == 4
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+
+
+def test_evaluate_release_blocks_good_candidate_with_strict_policy() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "strict",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    failed_metrics = {check["metric"] for check in payload["failed_checks"]}
+    assert payload["decision"] == "block"
+    assert payload["policy"] == "strict"
+    assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.05
+    assert failed_metrics == {"latency_p95_ms", "cost_proxy"}
+
+
+def test_evaluate_release_blocks_good_candidate_with_cost_sensitive_policy() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "cost-sensitive",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    failed_metrics = {check["metric"] for check in payload["failed_checks"]}
+    assert payload["decision"] == "block"
+    assert payload["policy"] == "cost-sensitive"
+    assert failed_metrics == {"cost_proxy"}
 
 
 def test_evaluate_release_persists_json_report(tmp_path, monkeypatch) -> None:
@@ -84,12 +128,12 @@ def test_evaluate_release_rejects_unsupported_policy() -> None:
         json={
             "baseline": {"release_id": "baseline"},
             "candidate": {"release_id": "candidate-good"},
-            "policy": "strict",
+            "policy": "unknown-policy",
         },
     )
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Unsupported policy: strict"}
+    assert response.json() == {"detail": "Unsupported policy: unknown-policy"}
 
 
 def test_evaluate_release_rejects_unknown_release() -> None:
@@ -117,6 +161,7 @@ def test_cli_promotes_and_prints_report_path(tmp_path, monkeypatch, capsys) -> N
 
     assert exit_code == 0
     assert "decision: promote" in captured.out
+    assert "policy: default" in captured.out
     assert f"report: {tmp_path}" in captured.out
 
 
@@ -135,14 +180,14 @@ def test_cli_blocks_with_nonzero_exit_code(tmp_path, monkeypatch, capsys) -> Non
 
 def test_cli_rejects_unsupported_policy(capsys) -> None:
     exit_code = cli_main(
-        ["--baseline", "baseline", "--candidate", "candidate-good", "--policy", "strict"]
+        ["--baseline", "baseline", "--candidate", "candidate-good", "--policy", "unknown-policy"]
     )
 
     captured = capsys.readouterr()
 
     assert exit_code == 2
     assert captured.out == ""
-    assert "error: Unsupported policy: strict" in captured.err
+    assert "error: Unsupported policy: unknown-policy" in captured.err
 
 
 def test_cli_rejects_unknown_release(capsys) -> None:

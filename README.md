@@ -23,14 +23,16 @@ Initial scaffold is in place:
 
 The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 
-## Planned MVP
+## Current Capabilities
 
 - sample baseline and candidate services
-- deterministic evaluator
-- comparison and policy engine
-- persisted JSON reports
+- deterministic fixture-driven evaluator
+- config-backed policy profiles for different release risk tolerances
+- comparison and threshold policy engine
+- persisted JSON reports with policy checks and metric deltas
+- FastAPI endpoint for service integration
 - CLI entrypoint for local runs and CI
-- one passing and one blocked demo release
+- passing and blocked demo release paths
 
 ## Development
 
@@ -83,6 +85,17 @@ evalgate --baseline baseline --candidate candidate-good --policy default
 ```
 
 The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
+
+## Policy Profiles
+
+EvalGate ships with config-backed policy profiles in `policy/profiles.json`:
+
+- `default`: balanced release gate for general model-backed services
+- `strict`: tighter thresholds for high-risk services
+- `cost-sensitive`: stricter cost guardrail for high-volume services
+- `quality-critical`: zero-tolerance quality regression gate
+
+Each evaluation report includes the active policy name, the threshold snapshot used for the run, all pass/fail policy checks, failed checks, baseline metrics, candidate metrics, and deltas.
 
 ## CI And Security
 
