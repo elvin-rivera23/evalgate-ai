@@ -8,6 +8,8 @@ FIXTURE_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "eval_cases
 @dataclass(slots=True)
 class EvalCase:
     case_id: str
+    risk_category: str
+    severity: str
     prompt: str
     expected_answer: str
 

@@ -1,24 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from math import ceil
 
 from fastapi.testclient import TestClient
 
 from evaluator.fixtures import load_eval_cases
-from evaluator.models import EvaluationMetrics
+from evaluator.models import EvaluationMetrics, ReleaseEvaluation, ServiceRunResult
 from services.apps import get_service_app
 
 
-@dataclass(slots=True)
-class ServiceRunResult:
-    latency_ms: float
-    cost_units: float
-    answer: str
-    is_error: bool
-
-
 def evaluate_release(release_id: str) -> EvaluationMetrics:
+    return evaluate_release_with_results(release_id).metrics
+
+
+def evaluate_release_with_results(release_id: str) -> ReleaseEvaluation:
     app = get_service_app(release_id)
     client = TestClient(app)
     cases = load_eval_cases()
@@ -32,6 +28,7 @@ def evaluate_release(release_id: str) -> EvaluationMetrics:
         payload = response.json()
         results.append(
             ServiceRunResult(
+                case_id=case.case_id,
                 latency_ms=payload["latency_ms"],
                 cost_units=payload["cost_units"],
                 answer=payload["answer"],
@@ -47,12 +44,13 @@ def evaluate_release(release_id: str) -> EvaluationMetrics:
     error_hits = [1.0 if result.is_error else 0.0 for result in results]
     cost_units = [result.cost_units for result in results]
 
-    return EvaluationMetrics(
+    metrics = EvaluationMetrics(
         latency_p95_ms=calculate_p95(latencies),
         error_rate=sum(error_hits) / len(error_hits),
         quality_score=sum(quality_hits) / len(quality_hits),
         cost_proxy=sum(cost_units) / len(cost_units),
     )
+    return ReleaseEvaluation(metrics=metrics, results=results)
 
 
 def metrics_to_dict(metrics: EvaluationMetrics) -> dict[str, float]:

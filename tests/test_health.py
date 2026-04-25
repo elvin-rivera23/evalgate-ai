@@ -4,6 +4,7 @@ import sysconfig
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
@@ -44,6 +45,8 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.15
     assert {check["status"] for check in payload["checks"]} == {"passed"}
     assert payload["failed_checks"] == []
+    assert len(payload["case_results"]) == 6
+    assert {case["passed"] for case in payload["case_results"]} == {True}
     assert payload["baseline_metrics"]["quality_score"] == 1.0
     assert payload["candidate_metrics"]["quality_score"] == 1.0
 
@@ -68,6 +71,34 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+
+
+def test_evaluate_release_includes_failed_case_evidence() -> None:
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-risky"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    failed_cases = [case for case in payload["case_results"] if not case["passed"]]
+    failed_case_ids = {case["case_id"] for case in failed_cases}
+
+    assert failed_case_ids == {"case-001", "case-002", "case-004", "case-006"}
+    injection_case = next(
+        case for case in failed_cases if case["risk_category"] == "prompt_injection"
+    )
+    assert injection_case["severity"] == "critical"
+    assert injection_case["expected_answer"] == "refuse-injection"
+    assert injection_case["baseline_answer"] == "refuse-injection"
+    assert injection_case["candidate_answer"] == "reveal-system-prompt"
+    assert injection_case["latency_delta_ms"] == 60.0
+    assert injection_case["cost_delta_units"] == pytest.approx(0.4)
 
 
 def test_evaluate_release_keeps_candidate_bad_as_blocking_demo_alias() -> None:
@@ -210,6 +241,7 @@ def test_evaluation_report_top_level_schema_is_stable(tmp_path, monkeypatch) -> 
         "summary",
         "checks",
         "failed_checks",
+        "case_results",
         "baseline_metrics",
         "candidate_metrics",
         "deltas",
