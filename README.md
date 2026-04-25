@@ -152,5 +152,6 @@ That artifact is intended to be the audit trail for CI and operator workflows. T
 - `policy` and `policy_thresholds`: the policy profile and threshold snapshot used for the run
 - `decision` and `summary`: final promote/block result
 - `checks` and `failed_checks`: full policy check output and the subset that failed
+- `evidence_summary`: failed check names, failed case counts, critical failure count, failed risk categories, and worst latency/cost deltas
 - `case_results`: per-case baseline answer, candidate answer, expected answer, risk category, severity, latency delta, and cost delta
 - `baseline_metrics`, `candidate_metrics`, and `deltas`: measured release comparison

@@ -59,6 +59,16 @@ class CaseResult(BaseModel):
     cost_delta_units: float
 
 
+class EvidenceSummary(BaseModel):
+    failed_checks: list[str]
+    failed_case_count: int
+    total_case_count: int
+    critical_failure_count: int
+    failed_risk_categories: list[str]
+    max_latency_delta_ms: float
+    max_cost_delta_units: float
+
+
 class EvaluationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -70,6 +80,7 @@ class EvaluationResponse(BaseModel):
     summary: str
     checks: list[PolicyCheck]
     failed_checks: list[FailedCheck]
+    evidence_summary: EvidenceSummary
     case_results: list[CaseResult]
     baseline_metrics: dict[str, float]
     candidate_metrics: dict[str, float]
