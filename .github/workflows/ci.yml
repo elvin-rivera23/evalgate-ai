@@ -114,8 +114,20 @@ jobs:
       - name: Validate EvalGate config
         run: evalgate --validate-config
 
-      - name: Run known-good release gate
-        run: evalgate --baseline baseline --candidate candidate-good --policy default
+      - name: Run and validate known-good release gate
+        run: |
+          mkdir -p reports
+          rm -f reports/*.json
+          evalgate --baseline baseline --candidate candidate-good --policy default
+
+          report_count="$(find reports -maxdepth 1 -type f -name '*.json' | wc -l)"
+          if [ "$report_count" -ne 1 ]; then
+            echo "::error::Expected exactly one EvalGate report, found $report_count."
+            exit 2
+          fi
+
+          report_path="$(find reports -maxdepth 1 -type f -name '*.json' -print -quit)"
+          evalgate --validate-report "$report_path"
 
       - name: Upload evaluation report
         if: always()
