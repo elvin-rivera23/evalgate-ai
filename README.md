@@ -189,6 +189,8 @@ The evaluator calls an inference service adapter. The repository ships a determi
 
 HTTP-backed releases are documented in [docs/service-adapters.md](docs/service-adapters.md). They let a team point EvalGate at a local or internal service endpoint without using paid model APIs or hosted infrastructure.
 
+Fixture and policy authoring guidance is available in [docs/fixtures-and-policies.md](docs/fixtures-and-policies.md).
+
 ## Policy Profiles
 
 EvalGate ships with config-backed policy profiles in `policy/profiles.json`:
@@ -199,6 +201,8 @@ EvalGate ships with config-backed policy profiles in `policy/profiles.json`:
 - `quality-critical`: zero-tolerance quality regression gate
 
 Each evaluation report includes the active policy name, the threshold snapshot used for the run, all pass/fail policy checks, failed checks, baseline metrics, candidate metrics, and deltas.
+
+Teams can customize fixture cases and policy thresholds using the authoring guidance in [docs/fixtures-and-policies.md](docs/fixtures-and-policies.md).
 
 ## CI And Security
 

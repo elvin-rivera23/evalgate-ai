@@ -67,6 +67,7 @@ EvalGate is designed to leave release evidence behind instead of only returning 
 - `evalgate --show-report <report_id>` prints the full saved report artifact.
 
 HTTP service adapter details are documented in [service-adapters.md](service-adapters.md).
+Fixture and policy authoring guidance is documented in [fixtures-and-policies.md](fixtures-and-policies.md).
 
 ## Report Contract
 
