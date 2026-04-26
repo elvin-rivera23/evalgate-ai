@@ -50,7 +50,7 @@ EvalGate is split into small operational pieces:
 - **API boundary**: `POST /releases/evaluate` accepts a baseline, candidate, and policy.
 - **CLI boundary**: `evalgate` runs release gates, report validation, summaries, triage, history lookup, and the built-in demo.
 - **Fixture evaluator**: runs the same deterministic scenarios against each release.
-- **Service adapter**: isolates release execution from the evaluator; the repo ships a deterministic registry-backed adapter for local and CI use.
+- **Service adapter**: isolates release execution from the evaluator; the repo ships deterministic and HTTP adapters for local, CI, and internal-service pilots.
 - **Policy engine**: compares baseline and candidate metrics against named policy profiles.
 - **Report store**: persists JSON reports and a local index for report lookup and history filtering.
 - **CI workflows**: validate config, run a known-good release gate, validate reports, publish job summaries, comment on pull requests, and upload report artifacts.
@@ -65,6 +65,8 @@ EvalGate is designed to leave release evidence behind instead of only returning 
 - `evalgate --triage-report <report_id>` focuses on failed checks, failed cases, severity, and risk category.
 - `evalgate --list-reports --report-candidate candidate-bad --report-decision block` reviews indexed release history.
 - `evalgate --show-report <report_id>` prints the full saved report artifact.
+
+HTTP service adapter details are documented in [service-adapters.md](service-adapters.md).
 
 ## Report Contract
 

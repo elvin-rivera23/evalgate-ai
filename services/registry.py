@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from evalgate.errors import UnknownReleaseError
 
 REGISTRY_PATH = Path(__file__).with_name("releases.json")
+ENV_REFERENCE_PATTERN = re.compile(r"^\$\{([A-Z0-9_]+)\}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +23,9 @@ class ReleaseResponse:
 class ReleaseDefinition:
     release_id: str
     responses: dict[str, ReleaseResponse]
+    adapter: str = "deterministic"
+    endpoint: str | None = None
+    timeout_seconds: float = 10.0
 
 
 def load_release_registry() -> dict[str, ReleaseDefinition]:
@@ -37,6 +43,9 @@ def load_release_registry() -> dict[str, ReleaseDefinition]:
         releases[alias] = ReleaseDefinition(
             release_id=alias,
             responses=target_release.responses,
+            adapter=target_release.adapter,
+            endpoint=target_release.endpoint,
+            timeout_seconds=target_release.timeout_seconds,
         )
 
     return releases
@@ -54,6 +63,26 @@ def build_release_definition(
     release_id: str,
     payload: dict[str, object],
 ) -> ReleaseDefinition:
+    adapter = str(payload.get("adapter", "deterministic"))
+    timeout_seconds = float(payload.get("timeout_seconds", 10.0))
+
+    if adapter == "http":
+        endpoint = payload.get("endpoint")
+        if endpoint is not None and not isinstance(endpoint, str):
+            raise ValueError(f"HTTP release endpoint must be a string: {release_id}")
+        if isinstance(endpoint, str):
+            endpoint = expand_endpoint(endpoint)
+        return ReleaseDefinition(
+            release_id=release_id,
+            responses={},
+            adapter=adapter,
+            endpoint=endpoint,
+            timeout_seconds=timeout_seconds,
+        )
+
+    if adapter != "deterministic":
+        raise ValueError(f"Unsupported release adapter {adapter}: {release_id}")
+
     responses_payload = payload["responses"]
     if not isinstance(responses_payload, dict):
         raise ValueError(f"Release responses must be an object: {release_id}")
@@ -64,4 +93,13 @@ def build_release_definition(
             case_id: ReleaseResponse(**response_payload)
             for case_id, response_payload in responses_payload.items()
         },
+        adapter=adapter,
+        timeout_seconds=timeout_seconds,
     )
+
+
+def expand_endpoint(endpoint: str) -> str | None:
+    match = ENV_REFERENCE_PATTERN.fullmatch(endpoint)
+    if not match:
+        return endpoint
+    return os.environ.get(match.group(1))

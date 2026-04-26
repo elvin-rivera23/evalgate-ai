@@ -12,3 +12,9 @@ class UnknownReleaseError(EvalGateError):
     def __init__(self, release_id: str) -> None:
         super().__init__(f"Unknown release_id: {release_id}")
         self.release_id = release_id
+
+
+class ServiceAdapterError(EvalGateError):
+    def __init__(self, release_id: str, message: str) -> None:
+        super().__init__(f"Release {release_id} adapter error: {message}")
+        self.release_id = release_id
