@@ -32,6 +32,7 @@ The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
 - persisted JSON reports with policy checks and metric deltas
 - FastAPI endpoint for service integration
 - CLI entrypoint for local runs and CI
+- automated CI check for config validation and known-good release gating
 - manual GitHub Actions release-gate workflow
 - passing and blocked demo release paths
 
@@ -99,7 +100,9 @@ The validation command checks evaluation fixtures, release definitions, aliases,
 
 EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.
 
-This repository includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, and uploads the generated JSON report as a workflow artifact.
+The main CI workflow runs `evalgate --validate-config` and evaluates `baseline` against `candidate-good` so each PR exercises the known-good release gate. It uploads the generated JSON report as a workflow artifact.
+
+This repository also includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, and uploads the generated JSON report as a workflow artifact.
 
 Use `candidate-good` to exercise a passing release and `candidate-bad` to exercise the blocking path. More detail is available in [docs/ci-release-gate.md](docs/ci-release-gate.md).
 
