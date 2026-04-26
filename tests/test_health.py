@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from evalgate.cli import main as cli_main
+from evalgate.report_summary import build_report_summary, format_markdown_summary
 from evalgate.report_validation import (
     ReportValidationError,
     get_report_schema,
@@ -357,6 +358,62 @@ def test_report_schema_export_includes_report_contract_fields() -> None:
     assert schema["properties"]["report_id"]["pattern"] == "^eval-[a-f0-9]{12}$"
 
 
+def test_report_summary_extracts_operator_fields() -> None:
+    payload = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    ).json()
+    report = validate_report_payload(payload)
+
+    summary = build_report_summary(report)
+
+    assert summary == {
+        "report_id": payload["report_id"],
+        "decision": "block",
+        "policy": "default",
+        "baseline_release_id": "baseline",
+        "candidate_release_id": "candidate-bad",
+        "summary": (
+            "Candidate exceeded the default policy thresholds for: "
+            "latency_p95_ms, quality_score, cost_proxy."
+        ),
+        "failed_checks": ["latency_p95_ms", "quality_score", "cost_proxy"],
+        "failed_case_count": 4,
+        "total_case_count": 6,
+        "critical_failure_count": 3,
+        "failed_risk_categories": [
+            "pii_leakage",
+            "prompt_injection",
+            "tool_use_policy",
+            "unsafe_financial_guidance",
+        ],
+    }
+
+
+def test_report_markdown_summary_formats_promote_report() -> None:
+    payload = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    ).json()
+    report = validate_report_payload(payload)
+
+    markdown = format_markdown_summary(report)
+
+    assert "## EvalGate Report Summary" in markdown
+    assert f"- Report: `{payload['report_id']}`" in markdown
+    assert "- Decision: `promote`" in markdown
+    assert "- Failed checks: none" in markdown
+    assert "- Failed cases: 0/6" in markdown
+
+
 def test_evaluate_release_rejects_unsupported_policy() -> None:
     response = client.post(
         "/releases/evaluate",
@@ -529,6 +586,70 @@ def test_cli_prints_report_schema(capsys) -> None:
     assert schema["title"] == "EvaluationResponse"
     assert "case_results" in schema["properties"]
     assert captured.err == ""
+
+
+def test_cli_summarizes_report_as_json(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+    report_path = tmp_path / f"{response.json()['report_id']}.json"
+
+    exit_code = cli_main(["--summarize-report", str(report_path)])
+
+    captured = capsys.readouterr()
+    summary = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert summary["decision"] == "block"
+    assert summary["failed_case_count"] == 4
+    assert summary["critical_failure_count"] == 3
+    assert summary["failed_checks"] == ["latency_p95_ms", "quality_score", "cost_proxy"]
+    assert captured.err == ""
+
+
+def test_cli_summarizes_report_as_markdown(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+    report_path = tmp_path / f"{response.json()['report_id']}.json"
+
+    exit_code = cli_main(
+        ["--summarize-report", str(report_path), "--summary-format", "markdown"]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "## EvalGate Report Summary" in captured.out
+    assert "- Decision: `promote`" in captured.out
+    assert "- Failed checks: none" in captured.out
+    assert captured.err == ""
+
+
+def test_cli_rejects_invalid_report_summary(tmp_path, capsys) -> None:
+    report_path = tmp_path / "invalid-report.json"
+    report_path.write_text('{"decision": "promote"}', encoding="utf-8")
+
+    exit_code = cli_main(["--summarize-report", str(report_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "report: invalid" in captured.err
+    assert "report_id: Field required" in captured.err
 
 
 def test_cli_rejects_missing_evaluation_arguments(capsys) -> None:

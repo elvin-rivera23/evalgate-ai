@@ -19,7 +19,7 @@ def get_report_schema() -> dict[str, Any]:
     return EvaluationResponse.model_json_schema()
 
 
-def validate_report_file(path: Path) -> None:
+def load_report_file(path: Path) -> EvaluationResponse:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
@@ -27,15 +27,19 @@ def validate_report_file(path: Path) -> None:
     except json.JSONDecodeError as exc:
         raise ReportValidationError([f"Invalid JSON: {exc.msg} at line {exc.lineno}."]) from exc
 
-    validate_report_payload(payload)
+    return validate_report_payload(payload)
 
 
-def validate_report_payload(payload: Any) -> None:
+def validate_report_file(path: Path) -> None:
+    load_report_file(path)
+
+
+def validate_report_payload(payload: Any) -> EvaluationResponse:
     if not isinstance(payload, dict):
         raise ReportValidationError(["Report must be a JSON object."])
 
     try:
-        EvaluationResponse.model_validate(payload)
+        return EvaluationResponse.model_validate(payload)
     except ValidationError as exc:
         raise ReportValidationError(format_validation_errors(exc)) from exc
 

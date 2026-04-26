@@ -16,6 +16,13 @@ Saved reports can be validated before ingestion by CI, dashboards, or release au
 evalgate --validate-report reports/<report_id>.json
 ```
 
+Saved reports can also be summarized for PR comments, dashboards, or release notes:
+
+```bash
+evalgate --summarize-report reports/<report_id>.json
+evalgate --summarize-report reports/<report_id>.json --summary-format markdown
+```
+
 ## Decision Semantics
 
 The `decision` field is the release gate output:
@@ -114,6 +121,26 @@ This section is intended for CI summaries, PR comments, release dashboards, and 
 `baseline_metrics`, `candidate_metrics`, and `deltas` contain aggregate release-level measurements used by policy checks. `deltas` stores candidate values relative to the baseline.
 
 These blocks are useful for automated trend tracking and dashboards. Policy outcomes should still be read from `decision`, `checks`, and `failed_checks`.
+
+## Summary Output
+
+`evalgate --summarize-report` validates a report and emits a compact summary for integration surfaces that should not parse the full report body.
+
+The default JSON summary includes:
+
+- `report_id`
+- `decision`
+- `policy`
+- `baseline_release_id`
+- `candidate_release_id`
+- `summary`
+- `failed_checks`
+- `failed_case_count`
+- `total_case_count`
+- `critical_failure_count`
+- `failed_risk_categories`
+
+Markdown output is available with `--summary-format markdown` for PR comments and release notes.
 
 ## Blocked Report Example
 

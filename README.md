@@ -108,6 +108,13 @@ Print the evaluation report JSON Schema:
 evalgate --print-report-schema
 ```
 
+Summarize a saved evaluation report for PR comments, dashboards, or release notes:
+
+```bash
+evalgate --summarize-report reports/<report_id>.json
+evalgate --summarize-report reports/<report_id>.json --summary-format markdown
+```
+
 ## CI Release Gate
 
 EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.
@@ -168,4 +175,4 @@ Repository-level GitHub features such as secret scanning and Dependabot alerts s
 
 Each evaluation run now persists a machine-readable JSON report to `reports/<report_id>.json`.
 
-That artifact is intended to be the audit trail for CI and operator workflows. The report contract, decision semantics, CLI exit codes, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).
+That artifact is intended to be the audit trail for CI and operator workflows. The report contract, decision semantics, CLI exit codes, summary output, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).
