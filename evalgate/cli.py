@@ -6,9 +6,11 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from api.schemas import EvaluationResponse
 from evalgate.errors import EvalGateError
 from evalgate.orchestration import run_evaluation
 from evalgate.report_summary import SummaryFormat, build_report_summary, format_markdown_summary
+from evalgate.report_triage import build_failure_triage, format_markdown_triage
 from evalgate.report_validation import (
     ReportValidationError,
     get_report_schema,
@@ -67,6 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="REPORT_ID",
         help="Show a saved EvalGate JSON report by report ID.",
     )
+    parser.add_argument(
+        "--triage-report",
+        metavar="REPORT_ID",
+        help="Show failed checks and cases for a saved EvalGate report ID.",
+    )
     return parser
 
 
@@ -92,6 +99,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.show_report:
         return run_show_report(args.show_report)
+
+    if args.triage_report:
+        return run_report_triage(args.triage_report, args.summary_format)
 
     if not args.baseline or not args.candidate:
         print(
@@ -183,39 +193,62 @@ def run_list_reports() -> int:
 
 def run_show_report(report_id: str) -> int:
     try:
+        report = load_report_by_id(report_id)
+    except ReportLookupError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    except ReportValidationError as exc:
+        print("report: invalid", file=sys.stderr)
+        for error in exc.errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
+
+    print(json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True))
+    return 0
+
+
+def run_report_triage(report_id: str, output_format: SummaryFormat) -> int:
+    try:
+        report = load_report_by_id(report_id)
+    except ReportLookupError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    except ReportValidationError as exc:
+        print("report: invalid", file=sys.stderr)
+        for error in exc.errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
+
+    if output_format == "markdown":
+        print(format_markdown_triage(report))
+    else:
+        print(json.dumps(build_failure_triage(report), indent=2, sort_keys=True))
+    return 0
+
+
+class ReportLookupError(Exception):
+    pass
+
+
+def load_report_by_id(report_id: str) -> EvaluationResponse:
+    try:
         report_path = store.build_report_path(report_id)
     except ValueError as exc:
-        print(f"report: invalid id ({exc})", file=sys.stderr)
-        return 2
+        raise ReportLookupError(f"report: invalid id ({exc})") from exc
 
     try:
         entries = store.load_report_index()
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        print(f"report index: invalid ({exc})", file=sys.stderr)
-        return 2
+        raise ReportLookupError(f"report index: invalid ({exc})") from exc
 
     if report_path.exists():
-        try:
-            report = load_report_file(report_path)
-        except ReportValidationError as exc:
-            print("report: invalid", file=sys.stderr)
-            for error in exc.errors:
-                print(f"- {error}", file=sys.stderr)
-            return 2
-
-        print(json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True))
-        return 0
+        return load_report_file(report_path)
 
     for entry in entries:
         if entry.get("report_id") == report_id:
-            print(
-                f"report artifact: missing for indexed report: {report_path}",
-                file=sys.stderr,
-            )
-            return 2
+            raise ReportLookupError(f"report artifact: missing for indexed report: {report_path}")
 
-    print(f"report index: report not found: {report_id}", file=sys.stderr)
-    return 2
+    raise ReportLookupError(f"report index: report not found: {report_id}")
 
 
 def format_list(values: list[str]) -> str:

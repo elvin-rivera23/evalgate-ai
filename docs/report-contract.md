@@ -23,6 +23,13 @@ evalgate --summarize-report reports/<report_id>.json
 evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 ```
 
+Operators can triage blocked reports by listing only failed checks, failed cases, and their supporting evidence:
+
+```bash
+evalgate --triage-report <report_id>
+evalgate --triage-report <report_id> --summary-format markdown
+```
+
 EvalGate maintains a local report index at `reports/index.json` so operators can list recent evaluations and load saved reports by ID:
 
 ```bash
@@ -152,6 +159,17 @@ The default JSON summary includes:
 - `failed_risk_categories`
 
 Markdown output is available with `--summary-format markdown` for PR comments and release notes.
+
+## Failure Triage
+
+`evalgate --triage-report <report_id>` validates the saved report and emits the subset an operator needs when a release is blocked:
+
+- failed policy checks with human-readable reasons
+- failed evaluation cases with risk category and severity
+- baseline and candidate answers for each failed case
+- latency and cost deltas for each failed case
+
+The default output is JSON for automation. Markdown output is available with `--summary-format markdown` for handoff notes.
 
 ## Report Index
 

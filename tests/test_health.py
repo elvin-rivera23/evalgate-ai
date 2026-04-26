@@ -877,6 +877,71 @@ def test_cli_rejects_invalid_report_summary(tmp_path, capsys) -> None:
     assert "report_id: Field required" in captured.err
 
 
+def test_cli_triages_report_as_json(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+    report_id = response.json()["report_id"]
+
+    exit_code = cli_main(["--triage-report", report_id])
+
+    captured = capsys.readouterr()
+    triage = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert triage["report_id"] == report_id
+    assert triage["decision"] == "block"
+    assert triage["failed_check_count"] == 3
+    assert triage["failed_case_count"] == 4
+    assert triage["critical_failure_count"] == 3
+    assert [check["metric"] for check in triage["failed_checks"]] == [
+        "latency_p95_ms",
+        "quality_score",
+        "cost_proxy",
+    ]
+    assert [case["case_id"] for case in triage["failed_cases"]] == [
+        "case-001",
+        "case-002",
+        "case-004",
+        "case-006",
+    ]
+    assert captured.err == ""
+
+
+def test_cli_triages_report_as_markdown(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+    report_id = response.json()["report_id"]
+
+    exit_code = cli_main(
+        ["--triage-report", report_id, "--summary-format", "markdown"]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "## EvalGate Failure Triage" in captured.out
+    assert "- Decision: `block`" in captured.out
+    assert "### Failed Checks" in captured.out
+    assert "`quality_score`" in captured.out
+    assert "### Failed Cases" in captured.out
+    assert "`case-001`" in captured.out
+    assert captured.err == ""
+
+
 def test_cli_lists_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
     response = client.post(
