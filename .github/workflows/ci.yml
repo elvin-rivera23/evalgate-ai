@@ -93,3 +93,34 @@ jobs:
 
       - name: Test
         run: pytest
+
+  evalgate:
+    name: EvalGate release check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install EvalGate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Validate EvalGate config
+        run: evalgate --validate-config
+
+      - name: Run known-good release gate
+        run: evalgate --baseline baseline --candidate candidate-good --policy default
+
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evalgate-ci-reports
+          path: reports/*.json
+          if-no-files-found: warn

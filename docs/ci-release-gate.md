@@ -6,7 +6,17 @@ EvalGate can run as a CI release gate because the CLI uses exit codes that autom
 - `1`: candidate failed the selected policy and the workflow should block
 - `2`: the evaluation request was invalid
 
-The repository includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, and uploads the generated JSON report as a workflow artifact.
+The main CI workflow runs EvalGate automatically for every pull request and push covered by CI. That automated check validates config and evaluates the known-good path:
+
+```text
+baseline: baseline
+candidate: candidate-good
+policy: default
+```
+
+The automated check uses `candidate-good` because CI should prove EvalGate can run and pass for a valid release. A blocking candidate would intentionally fail every pull request.
+
+The repository also includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, and uploads the generated JSON report as a workflow artifact.
 
 Run the workflow with the default inputs to evaluate a passing candidate:
 
