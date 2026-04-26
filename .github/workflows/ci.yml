@@ -115,6 +115,7 @@ jobs:
         run: evalgate --validate-config
 
       - name: Run and validate known-good release gate
+        id: evalgate
         run: |
           mkdir -p reports
           rm -f reports/*.json
@@ -128,6 +129,11 @@ jobs:
 
           report_path="$(find reports -maxdepth 1 -type f -name '*.json' -print -quit)"
           evalgate --validate-report "$report_path"
+          echo "report_path=$report_path" >> "$GITHUB_OUTPUT"
+
+      - name: Publish EvalGate summary
+        run: |
+          evalgate --summarize-report "${{ steps.evalgate.outputs.report_path }}" --summary-format markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload evaluation report
         if: always()
