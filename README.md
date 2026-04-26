@@ -115,6 +115,13 @@ evalgate --summarize-report reports/<report_id>.json
 evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 ```
 
+Review only the failed checks and cases for a saved report:
+
+```bash
+evalgate --triage-report <report_id>
+evalgate --triage-report <report_id> --summary-format markdown
+```
+
 List recent reports or inspect a saved report by ID:
 
 ```bash
