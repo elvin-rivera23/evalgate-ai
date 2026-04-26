@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReleaseTarget(BaseModel):
@@ -16,6 +18,8 @@ class HealthResponse(BaseModel):
 
 
 class EvaluationMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     created_at: str
     baseline_release_id: str
     candidate_release_id: str
@@ -24,26 +28,32 @@ class EvaluationMetadata(BaseModel):
 
 
 class FailedCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     metric: str
     baseline: float
     candidate: float
     threshold_type: str
     threshold_value: float
     delta: float
-    status: str = "failed"
+    status: Literal["failed"]
 
 
 class PolicyCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     metric: str
     baseline: float
     candidate: float
     threshold_type: str
     threshold_value: float
     delta: float
-    status: str
+    status: Literal["passed", "failed"]
 
 
 class CaseResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     case_id: str
     risk_category: str
     severity: str
@@ -60,6 +70,8 @@ class CaseResult(BaseModel):
 
 
 class EvidenceSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     failed_checks: list[str]
     failed_case_count: int
     total_case_count: int
@@ -72,11 +84,11 @@ class EvidenceSummary(BaseModel):
 class EvaluationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    report_id: str
+    report_id: str = Field(pattern=r"^eval-[a-f0-9]{12}$")
     metadata: EvaluationMetadata
     policy: str
     policy_thresholds: dict[str, float]
-    decision: str
+    decision: Literal["promote", "block"]
     summary: str
     checks: list[PolicyCheck]
     failed_checks: list[FailedCheck]
