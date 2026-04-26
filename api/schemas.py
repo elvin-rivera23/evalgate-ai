@@ -37,6 +37,7 @@ class FailedCheck(BaseModel):
     threshold_value: float
     delta: float
     status: Literal["failed"]
+    reason: str
 
 
 class PolicyCheck(BaseModel):
@@ -49,6 +50,7 @@ class PolicyCheck(BaseModel):
     threshold_value: float
     delta: float
     status: Literal["passed", "failed"]
+    reason: str | None
 
 
 class CaseResult(BaseModel):

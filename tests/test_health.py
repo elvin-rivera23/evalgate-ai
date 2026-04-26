@@ -18,7 +18,9 @@ from evalgate.report_validation import (
 )
 from evalgate.validation import validate_config
 from evaluator.fixtures import load_eval_cases
+from evaluator.models import EvaluationMetrics
 from evaluator.runner import evaluate_release_with_results
+from policy.engine import evaluate_release_policy
 from policy.models import PolicyProfile, PolicyThresholds
 from reporting import store
 from services.adapters import DeterministicReleaseService
@@ -62,6 +64,7 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     assert payload["policy"] == "default"
     assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.15
     assert {check["status"] for check in payload["checks"]} == {"passed"}
+    assert all(check["reason"] is None for check in payload["checks"])
     assert payload["failed_checks"] == []
     assert payload["evidence_summary"] == {
         "failed_checks": [],
@@ -98,6 +101,19 @@ def test_evaluate_release_blocks_candidate_with_regressions() -> None:
     assert "latency_p95_ms" in failed_metrics
     assert "quality_score" in failed_metrics
     assert "cost_proxy" in failed_metrics
+    failed_reasons = {check["metric"]: check["reason"] for check in payload["failed_checks"]}
+    assert failed_reasons["latency_p95_ms"] == (
+        "latency_p95_ms increased by 53.12% from 160 to 245, "
+        "exceeding the allowed 15.00% increase."
+    )
+    assert failed_reasons["quality_score"] == (
+        "quality_score dropped by 66.67% from 1 to 0.3333, "
+        "exceeding the allowed 3.00% drop."
+    )
+    assert failed_reasons["cost_proxy"] == (
+        "cost_proxy increased by 32.00% from 1.25 to 1.65, "
+        "exceeding the allowed 20.00% increase."
+    )
     assert payload["evidence_summary"]["failed_checks"] == [
         "latency_p95_ms",
         "quality_score",
@@ -179,6 +195,10 @@ def test_evaluate_release_blocks_expensive_candidate_on_cost() -> None:
     failed_metrics = {check["metric"] for check in payload["failed_checks"]}
     assert payload["decision"] == "block"
     assert failed_metrics == {"cost_proxy"}
+    assert payload["failed_checks"][0]["reason"] == (
+        "cost_proxy increased by 64.00% from 1.25 to 2.05, "
+        "exceeding the allowed 20.00% increase."
+    )
 
 
 def test_evaluate_release_blocks_low_quality_candidate_on_quality() -> None:
@@ -197,6 +217,10 @@ def test_evaluate_release_blocks_low_quality_candidate_on_quality() -> None:
     failed_metrics = {check["metric"] for check in payload["failed_checks"]}
     assert payload["decision"] == "block"
     assert failed_metrics == {"quality_score"}
+    assert payload["failed_checks"][0]["reason"] == (
+        "quality_score dropped by 50.00% from 1 to 0.5, "
+        "exceeding the allowed 3.00% drop."
+    )
 
 
 def test_evaluate_release_blocks_good_candidate_with_strict_policy() -> None:
@@ -217,6 +241,11 @@ def test_evaluate_release_blocks_good_candidate_with_strict_policy() -> None:
     assert payload["policy"] == "strict"
     assert payload["policy_thresholds"]["max_latency_increase_pct"] == 0.05
     assert failed_metrics == {"latency_p95_ms", "cost_proxy"}
+    failed_reasons = {check["metric"]: check["reason"] for check in payload["failed_checks"]}
+    assert failed_reasons["latency_p95_ms"] == (
+        "latency_p95_ms increased by 5.62% from 160 to 169, "
+        "exceeding the allowed 5.00% increase."
+    )
 
 
 def test_evaluate_release_blocks_good_candidate_with_cost_sensitive_policy() -> None:
@@ -236,6 +265,36 @@ def test_evaluate_release_blocks_good_candidate_with_cost_sensitive_policy() -> 
     assert payload["decision"] == "block"
     assert payload["policy"] == "cost-sensitive"
     assert failed_metrics == {"cost_proxy"}
+
+
+def test_policy_failure_explains_error_rate_regression() -> None:
+    decision = evaluate_release_policy(
+        baseline=EvaluationMetrics(
+            latency_p95_ms=100.0,
+            error_rate=0.01,
+            quality_score=1.0,
+            cost_proxy=1.0,
+        ),
+        candidate=EvaluationMetrics(
+            latency_p95_ms=100.0,
+            error_rate=0.05,
+            quality_score=1.0,
+            cost_proxy=1.0,
+        ),
+        profile=PolicyProfile(
+            name="test",
+            description="Test policy.",
+            thresholds=PolicyThresholds(max_error_rate_increase_abs=0.02),
+        ),
+    )
+
+    failed_reasons = {check.metric: check.reason for check in decision.failed_checks}
+
+    assert decision.decision == "block"
+    assert failed_reasons["error_rate"] == (
+        "error_rate increased by 0.04 from 0.01 to 0.05, "
+        "exceeding the allowed 0.02 absolute increase."
+    )
 
 
 def test_evaluate_release_persists_json_report(tmp_path, monkeypatch) -> None:
@@ -382,6 +441,20 @@ def test_report_summary_extracts_operator_fields() -> None:
             "latency_p95_ms, quality_score, cost_proxy."
         ),
         "failed_checks": ["latency_p95_ms", "quality_score", "cost_proxy"],
+        "failure_reasons": [
+            (
+                "latency_p95_ms increased by 53.12% from 160 to 245, "
+                "exceeding the allowed 15.00% increase."
+            ),
+            (
+                "quality_score dropped by 66.67% from 1 to 0.3333, "
+                "exceeding the allowed 3.00% drop."
+            ),
+            (
+                "cost_proxy increased by 32.00% from 1.25 to 1.65, "
+                "exceeding the allowed 20.00% increase."
+            ),
+        ],
         "failed_case_count": 4,
         "total_case_count": 6,
         "critical_failure_count": 3,
@@ -411,7 +484,32 @@ def test_report_markdown_summary_formats_promote_report() -> None:
     assert f"- Report: `{payload['report_id']}`" in markdown
     assert "- Decision: `promote`" in markdown
     assert "- Failed checks: none" in markdown
+    assert "- Failure reasons: none" in markdown
     assert "- Failed cases: 0/6" in markdown
+
+
+def test_report_markdown_summary_lists_failure_reasons_for_blocked_report() -> None:
+    payload = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    ).json()
+    report = validate_report_payload(payload)
+
+    markdown = format_markdown_summary(report)
+
+    assert "### Failure Reasons" in markdown
+    assert (
+        "- latency_p95_ms increased by 53.12% from 160 to 245, "
+        "exceeding the allowed 15.00% increase."
+    ) in markdown
+    assert (
+        "- quality_score dropped by 66.67% from 1 to 0.3333, "
+        "exceeding the allowed 3.00% drop."
+    ) in markdown
 
 
 def test_evaluate_release_rejects_unsupported_policy() -> None:
@@ -610,6 +708,20 @@ def test_cli_summarizes_report_as_json(tmp_path, monkeypatch, capsys) -> None:
     assert summary["failed_case_count"] == 4
     assert summary["critical_failure_count"] == 3
     assert summary["failed_checks"] == ["latency_p95_ms", "quality_score", "cost_proxy"]
+    assert summary["failure_reasons"] == [
+        (
+            "latency_p95_ms increased by 53.12% from 160 to 245, "
+            "exceeding the allowed 15.00% increase."
+        ),
+        (
+            "quality_score dropped by 66.67% from 1 to 0.3333, "
+            "exceeding the allowed 3.00% drop."
+        ),
+        (
+            "cost_proxy increased by 32.00% from 1.25 to 1.65, "
+            "exceeding the allowed 20.00% increase."
+        ),
+    ]
     assert captured.err == ""
 
 
@@ -635,6 +747,7 @@ def test_cli_summarizes_report_as_markdown(tmp_path, monkeypatch, capsys) -> Non
     assert "## EvalGate Report Summary" in captured.out
     assert "- Decision: `promote`" in captured.out
     assert "- Failed checks: none" in captured.out
+    assert "- Failure reasons: none" in captured.out
     assert captured.err == ""
 
 

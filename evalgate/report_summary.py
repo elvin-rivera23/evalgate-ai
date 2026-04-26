@@ -16,6 +16,7 @@ def build_report_summary(report: EvaluationResponse) -> dict[str, object]:
         "candidate_release_id": report.metadata.candidate_release_id,
         "summary": report.summary,
         "failed_checks": report.evidence_summary.failed_checks,
+        "failure_reasons": [check.reason for check in report.failed_checks],
         "failed_case_count": report.evidence_summary.failed_case_count,
         "total_case_count": report.evidence_summary.total_case_count,
         "critical_failure_count": report.evidence_summary.critical_failure_count,
@@ -39,6 +40,12 @@ def format_markdown_summary(report: EvaluationResponse) -> str:
         f"- Critical failures: {summary['critical_failure_count']}",
         f"- Risk categories: {format_list(summary['failed_risk_categories'])}",
     ]
+    failure_reasons = summary["failure_reasons"]
+    if isinstance(failure_reasons, list) and failure_reasons:
+        lines.extend(["", "### Failure Reasons"])
+        lines.extend(f"- {reason}" for reason in failure_reasons)
+    else:
+        lines.append("- Failure reasons: none")
     return "\n".join(lines)
 
 

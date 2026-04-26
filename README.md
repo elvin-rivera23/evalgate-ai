@@ -175,4 +175,4 @@ Repository-level GitHub features such as secret scanning and Dependabot alerts s
 
 Each evaluation run now persists a machine-readable JSON report to `reports/<report_id>.json`.
 
-That artifact is intended to be the audit trail for CI and operator workflows. The report contract, decision semantics, CLI exit codes, summary output, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).
+That artifact is intended to be the audit trail for CI and operator workflows. The report contract, decision semantics, CLI exit codes, failure explanations, summary output, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).

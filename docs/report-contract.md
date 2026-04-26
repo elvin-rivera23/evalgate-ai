@@ -85,6 +85,7 @@ Each check includes:
 - `threshold_value`: configured threshold
 - `delta`: measured difference between candidate and baseline
 - `status`: `passed` or `failed`
+- `reason`: human-readable failure explanation, or `null` for passing checks
 
 ## Evidence Summary
 
@@ -135,6 +136,7 @@ The default JSON summary includes:
 - `candidate_release_id`
 - `summary`
 - `failed_checks`
+- `failure_reasons`
 - `failed_case_count`
 - `total_case_count`
 - `critical_failure_count`
@@ -156,7 +158,8 @@ Markdown output is available with `--summary-format markdown` for PR comments an
       "threshold_type": "max_drop_percent",
       "threshold_value": 0.05,
       "delta": -0.67,
-      "status": "failed"
+      "status": "failed",
+      "reason": "quality_score dropped by 67.00% from 1 to 0.33, exceeding the allowed 5.00% drop."
     }
   ],
   "evidence_summary": {
