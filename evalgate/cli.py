@@ -39,6 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate EvalGate fixture, release, and policy configuration.",
     )
     parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run the built-in passing and blocking EvalGate demo workflow.",
+    )
+    parser.add_argument(
         "--validate-report",
         metavar="PATH",
         help="Validate a persisted EvalGate JSON report against the report contract.",
@@ -120,6 +125,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.validate_config:
         return run_config_validation()
 
+    if args.demo:
+        return run_demo()
+
     if args.list_reports:
         return run_list_reports(
             candidate=args.report_candidate,
@@ -168,6 +176,61 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print(f"report: {evaluation.report_path}")
     return 0 if evaluation.response.decision == "promote" else 1
+
+
+def run_demo() -> int:
+    try:
+        passing_run = run_evaluation(
+            baseline_release_id="baseline",
+            candidate_release_id="candidate-good",
+            policy_name="default",
+        )
+        blocking_run = run_evaluation(
+            baseline_release_id="baseline",
+            candidate_release_id="candidate-bad",
+            policy_name="default",
+        )
+    except EvalGateError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    history = filter_report_entries(
+        store.load_report_index(),
+        candidate="candidate-bad",
+        decision="block",
+        limit=3,
+    )
+    demo_output = {
+        "passing_report_id": passing_run.response.report_id,
+        "blocking_report_id": blocking_run.response.report_id,
+        "blocked_candidate_history": history,
+    }
+
+    print("# EvalGate Demo")
+    print()
+    print("## Evaluations")
+    print()
+    print(
+        "- Passing candidate: "
+        f"`{passing_run.response.metadata.candidate_release_id}` -> "
+        f"`{passing_run.response.decision}` "
+        f"({passing_run.response.report_id})"
+    )
+    print(
+        "- Blocking candidate: "
+        f"`{blocking_run.response.metadata.candidate_release_id}` -> "
+        f"`{blocking_run.response.decision}` "
+        f"({blocking_run.response.report_id})"
+    )
+    print()
+    print(format_markdown_summary(passing_run.response))
+    print()
+    print(format_markdown_triage(blocking_run.response))
+    print()
+    print("## Recent Blocked Candidate History")
+    print()
+    print(json.dumps(demo_output, indent=2, sort_keys=True))
+    return 0
 
 
 def run_config_validation() -> int:

@@ -877,6 +877,30 @@ def test_cli_rejects_invalid_report_summary(tmp_path, capsys) -> None:
     assert "report_id: Field required" in captured.err
 
 
+def test_cli_runs_demo_workflow(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    exit_code = cli_main(["--demo"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "# EvalGate Demo" in captured.out
+    assert "## Evaluations" in captured.out
+    assert "Passing candidate: `candidate-good` -> `promote`" in captured.out
+    assert "Blocking candidate: `candidate-bad` -> `block`" in captured.out
+    assert "## EvalGate Report Summary" in captured.out
+    assert "## EvalGate Failure Triage" in captured.out
+    assert "## Recent Blocked Candidate History" in captured.out
+    assert '"passing_report_id": "eval-' in captured.out
+    assert '"blocking_report_id": "eval-' in captured.out
+    assert '"candidate_release_id": "candidate-bad"' in captured.out
+    assert '"decision": "block"' in captured.out
+    assert len(list(tmp_path.glob("eval-*.json"))) == 2
+    assert (tmp_path / "index.json").exists()
+    assert captured.err == ""
+
+
 def test_cli_triages_report_as_json(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
     response = client.post(
