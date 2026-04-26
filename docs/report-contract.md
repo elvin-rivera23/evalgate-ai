@@ -23,12 +23,14 @@ evalgate --summarize-report reports/<report_id>.json
 evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 ```
 
-EvalGate maintains a local report index at `reports/index.json` so operators can list recent evaluations:
+EvalGate maintains a local report index at `reports/index.json` so operators can list recent evaluations and load saved reports by ID:
 
 ```bash
 evalgate --list-reports
 evalgate --show-report <report_id>
 ```
+
+`--show-report` prints the full saved report from `reports/<report_id>.json`. If the index contains the report ID but the JSON artifact is missing, EvalGate reports that state separately from an unknown report ID.
 
 ## Decision Semantics
 
@@ -165,7 +167,7 @@ Markdown output is available with `--summary-format markdown` for PR comments an
 - `failed_case_count`
 - `critical_failure_count`
 
-The index is runtime state, not source-controlled product configuration. CI and local runs can regenerate it from new evaluations.
+The index is runtime state, not source-controlled product configuration. CI and local runs can regenerate it from new evaluations. The index is not a replacement for the full report artifact; it is the lookup table for recent evaluation metadata.
 
 ## Blocked Report Example
 

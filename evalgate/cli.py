@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--show-report",
         metavar="REPORT_ID",
-        help="Show one indexed EvalGate report entry by report ID.",
+        help="Show a saved EvalGate JSON report by report ID.",
     )
     return parser
 
@@ -183,15 +183,36 @@ def run_list_reports() -> int:
 
 def run_show_report(report_id: str) -> int:
     try:
+        report_path = store.build_report_path(report_id)
+    except ValueError as exc:
+        print(f"report: invalid id ({exc})", file=sys.stderr)
+        return 2
+
+    try:
         entries = store.load_report_index()
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"report index: invalid ({exc})", file=sys.stderr)
         return 2
 
+    if report_path.exists():
+        try:
+            report = load_report_file(report_path)
+        except ReportValidationError as exc:
+            print("report: invalid", file=sys.stderr)
+            for error in exc.errors:
+                print(f"- {error}", file=sys.stderr)
+            return 2
+
+        print(json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True))
+        return 0
+
     for entry in entries:
         if entry.get("report_id") == report_id:
-            print(json.dumps(entry, indent=2, sort_keys=True))
-            return 0
+            print(
+                f"report artifact: missing for indexed report: {report_path}",
+                file=sys.stderr,
+            )
+            return 2
 
     print(f"report index: report not found: {report_id}", file=sys.stderr)
     return 2
