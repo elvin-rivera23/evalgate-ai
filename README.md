@@ -119,9 +119,9 @@ evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 
 EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.
 
-The main CI workflow runs `evalgate --validate-config` and evaluates `baseline` against `candidate-good` so each PR exercises the known-good release gate. It validates the generated report against the report contract before uploading the JSON report as a workflow artifact.
+The main CI workflow runs `evalgate --validate-config` and evaluates `baseline` against `candidate-good` so each PR exercises the known-good release gate. It validates the generated report against the report contract, publishes a Markdown summary to the GitHub Actions job summary, and uploads the JSON report as a workflow artifact.
 
-This repository also includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, validates the generated report, and uploads the generated JSON report as a workflow artifact.
+This repository also includes a manual GitHub Actions workflow at `.github/workflows/evalgate-release-gate.yml`. It accepts `baseline`, `candidate`, and `policy` inputs, runs `evalgate`, validates the generated report, publishes a Markdown summary, and uploads the generated JSON report as a workflow artifact.
 
 Use `candidate-good` to exercise a passing release and `candidate-bad` to exercise the blocking path. More detail is available in [docs/ci-release-gate.md](docs/ci-release-gate.md).
 

@@ -41,6 +41,7 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Run EvalGate and validate report
+        id: evalgate
         run: |
           mkdir -p reports
           rm -f reports/*.json
@@ -61,6 +62,8 @@ jobs:
 
           report_path="$(find reports -maxdepth 1 -type f -name '*.json' -print -quit)"
           evalgate --validate-report "$report_path"
+          echo "report_path=$report_path" >> "$GITHUB_OUTPUT"
+          evalgate --summarize-report "$report_path" --summary-format markdown >> "$GITHUB_STEP_SUMMARY"
 
           exit "$evalgate_status"
 
