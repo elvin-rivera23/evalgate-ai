@@ -40,12 +40,29 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run EvalGate
+      - name: Run EvalGate and validate report
         run: |
+          mkdir -p reports
+          rm -f reports/*.json
+
+          set +e
           evalgate \
             --baseline "${{ inputs.baseline }}" \
             --candidate "${{ inputs.candidate }}" \
             --policy "${{ inputs.policy }}"
+          evalgate_status=$?
+          set -e
+
+          report_count="$(find reports -maxdepth 1 -type f -name '*.json' | wc -l)"
+          if [ "$report_count" -ne 1 ]; then
+            echo "::error::Expected exactly one EvalGate report, found $report_count."
+            exit 2
+          fi
+
+          report_path="$(find reports -maxdepth 1 -type f -name '*.json' -print -quit)"
+          evalgate --validate-report "$report_path"
+
+          exit "$evalgate_status"
 
       - name: Upload evaluation report
         if: always()

@@ -14,9 +14,9 @@ candidate: candidate-good
 policy: default
 ```
 
-The automated check uses `candidate-good` because CI should prove EvalGate can run and pass for a valid release. A blocking candidate would intentionally fail every pull request.
+The automated check uses `candidate-good` because CI should prove EvalGate can run and pass for a valid release. A blocking candidate would intentionally fail every pull request. The workflow also validates the generated JSON report with `evalgate --validate-report` before uploading it as an artifact.
 
-The repository also includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, and uploads the generated JSON report as a workflow artifact.
+The repository also includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, validates the generated JSON report, and uploads the report as a workflow artifact.
 
 Run the workflow with the default inputs to evaluate a passing candidate:
 
@@ -34,4 +34,4 @@ candidate: candidate-bad
 policy: default
 ```
 
-The workflow fails when EvalGate returns `block`, which is the intended release-gate behavior.
+The workflow validates the report before returning EvalGate's exit code. It still fails when EvalGate returns `block`, which is the intended release-gate behavior.
