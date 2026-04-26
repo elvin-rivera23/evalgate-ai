@@ -2,6 +2,8 @@
 
 EvalGate works best when teams keep evaluation cases and release policies explicit, reviewed, and versioned with the service they protect. This guide describes how to customize the fixture suite and policy profiles for an internal pilot.
 
+EvalGate reads fixtures, release definitions, and policy profiles from a configuration directory. By default, that directory is the repository root. For a dedicated evaluation repository or copied pilot pack, use `--config-dir path/to/evalgate-pack` or set `EVALGATE_CONFIG_DIR`.
+
 ## Authoring Fixtures
 
 Fixtures live in `fixtures/eval_cases.json`. Each fixture is one scenario that both the baseline and candidate release must answer.
@@ -97,7 +99,7 @@ Treat policy threshold changes like release-control changes:
 Run validation after fixture, release, or policy changes:
 
 ```bash
-evalgate --validate-config
+evalgate --config-dir path/to/evalgate-pack --validate-config
 pytest
 evalgate --demo
 ```

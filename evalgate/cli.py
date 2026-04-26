@@ -34,6 +34,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Policy profile name to apply.",
     )
     parser.add_argument(
+        "--config-dir",
+        metavar="PATH",
+        help=(
+            "Directory containing fixtures/eval_cases.json, services/releases.json, "
+            "and policy/profiles.json. Defaults to this repository or EVALGATE_CONFIG_DIR."
+        ),
+    )
+    parser.add_argument(
         "--validate-config",
         action="store_true",
         help="Validate EvalGate fixture, release, and policy configuration.",
@@ -123,10 +131,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_report_summary(Path(args.summarize_report), args.summary_format)
 
     if args.validate_config:
-        return run_config_validation()
+        return run_config_validation(args.config_dir)
 
     if args.demo:
-        return run_demo()
+        return run_demo(args.config_dir)
 
     if args.list_reports:
         return run_list_reports(
@@ -155,6 +163,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             baseline_release_id=args.baseline,
             candidate_release_id=args.candidate,
             policy_name=args.policy,
+            config_dir=args.config_dir,
         )
     except EvalGateError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -178,17 +187,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0 if evaluation.response.decision == "promote" else 1
 
 
-def run_demo() -> int:
+def run_demo(config_dir: str | Path | None = None) -> int:
     try:
         passing_run = run_evaluation(
             baseline_release_id="baseline",
             candidate_release_id="candidate-good",
             policy_name="default",
+            config_dir=config_dir,
         )
         blocking_run = run_evaluation(
             baseline_release_id="baseline",
             candidate_release_id="candidate-bad",
             policy_name="default",
+            config_dir=config_dir,
         )
     except EvalGateError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -233,9 +244,9 @@ def run_demo() -> int:
     return 0
 
 
-def run_config_validation() -> int:
+def run_config_validation(config_dir: str | Path | None = None) -> int:
     try:
-        validate_config_or_raise()
+        validate_config_or_raise(config_dir)
     except ConfigValidationError as exc:
         print("config: invalid", file=sys.stderr)
         for error in exc.errors:

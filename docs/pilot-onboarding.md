@@ -26,7 +26,33 @@ The first pilot should prove the release workflow, not maximize fixture coverage
 
 ## 2. Configure The Candidate Adapter
 
-Add an HTTP-backed candidate release in `services/releases.json`:
+EvalGate reads a configuration directory with this structure:
+
+```text
+fixtures/eval_cases.json
+policy/profiles.json
+services/releases.json
+```
+
+By default, the CLI uses the current EvalGate repository configuration. For a dedicated evaluation repository or copied pilot pack, point EvalGate at that directory:
+
+```bash
+evalgate --config-dir path/to/evalgate-pack --validate-config
+```
+
+You can also set the directory once for local shells or CI:
+
+```bash
+export EVALGATE_CONFIG_DIR="path/to/evalgate-pack"
+```
+
+PowerShell:
+
+```powershell
+$env:EVALGATE_CONFIG_DIR = "path/to/evalgate-pack"
+```
+
+Add an HTTP-backed candidate release in `services/releases.json` inside that configuration directory:
 
 ```json
 {
@@ -64,18 +90,20 @@ Customize fixtures and thresholds with [fixtures-and-policies.md](fixtures-and-p
 - keep expected answers as normalized labels
 - review threshold changes like release-control changes
 
+A copyable starter pack is available in [examples/evalgate-pack](examples/evalgate-pack).
+
 ## 4. Validate Locally
 
 Run the configuration check:
 
 ```bash
-evalgate --validate-config
+evalgate --config-dir path/to/evalgate-pack --validate-config
 ```
 
 Run a candidate evaluation:
 
 ```bash
-evalgate --baseline baseline --candidate my-service-candidate --policy default
+evalgate --config-dir path/to/evalgate-pack --baseline baseline --candidate my-service-candidate --policy default
 ```
 
 If EvalGate blocks the release, inspect the generated report:
@@ -104,6 +132,7 @@ Adjust workflow environment values:
 
 ```yaml
 env:
+  EVALGATE_CONFIG_DIR: .
   EVALGATE_BASELINE: baseline
   EVALGATE_CANDIDATE: my-service-candidate
   EVALGATE_POLICY: default

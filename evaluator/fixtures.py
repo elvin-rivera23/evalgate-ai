@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-FIXTURE_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "eval_cases.json"
+from evalgate.config import get_config_paths
 
 
 @dataclass(slots=True)
@@ -14,6 +14,7 @@ class EvalCase:
     expected_answer: str
 
 
-def load_eval_cases() -> list[EvalCase]:
-    raw_cases = json.loads(FIXTURE_PATH.read_text())
+def load_eval_cases(config_dir: str | Path | None = None) -> list[EvalCase]:
+    fixture_path = get_config_paths(config_dir).fixtures_path
+    raw_cases = json.loads(fixture_path.read_text(encoding="utf-8"))
     return [EvalCase(**raw_case) for raw_case in raw_cases]

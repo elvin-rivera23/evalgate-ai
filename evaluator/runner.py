@@ -2,22 +2,27 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from math import ceil
+from pathlib import Path
 
 from evaluator.fixtures import load_eval_cases
 from evaluator.models import EvaluationMetrics, ReleaseEvaluation, ServiceRunResult
 from services.adapters import InferenceService, get_inference_service
 
 
-def evaluate_release(release_id: str) -> EvaluationMetrics:
-    return evaluate_release_with_results(release_id).metrics
+def evaluate_release(
+    release_id: str,
+    config_dir: str | Path | None = None,
+) -> EvaluationMetrics:
+    return evaluate_release_with_results(release_id, config_dir=config_dir).metrics
 
 
 def evaluate_release_with_results(
     release_id: str,
     service: InferenceService | None = None,
+    config_dir: str | Path | None = None,
 ) -> ReleaseEvaluation:
-    service = service or get_inference_service(release_id)
-    cases = load_eval_cases()
+    service = service or get_inference_service(release_id, config_dir)
+    cases = load_eval_cases(config_dir)
     results: list[ServiceRunResult] = []
 
     for case in cases:

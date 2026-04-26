@@ -6,9 +6,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from evalgate.config import get_config_paths
 from evalgate.errors import UnknownReleaseError
 
-REGISTRY_PATH = Path(__file__).with_name("releases.json")
 ENV_REFERENCE_PATTERN = re.compile(r"^\$\{([A-Z0-9_]+)\}$")
 
 
@@ -28,8 +28,9 @@ class ReleaseDefinition:
     timeout_seconds: float = 10.0
 
 
-def load_release_registry() -> dict[str, ReleaseDefinition]:
-    payload = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+def load_release_registry(config_dir: str | Path | None = None) -> dict[str, ReleaseDefinition]:
+    registry_path = get_config_paths(config_dir).releases_path
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
     releases = {
         release_id: build_release_definition(release_id, release_payload)
         for release_id, release_payload in payload["releases"].items()
@@ -51,8 +52,11 @@ def load_release_registry() -> dict[str, ReleaseDefinition]:
     return releases
 
 
-def get_release_definition(release_id: str) -> ReleaseDefinition:
-    releases = load_release_registry()
+def get_release_definition(
+    release_id: str,
+    config_dir: str | Path | None = None,
+) -> ReleaseDefinition:
+    releases = load_release_registry(config_dir)
     try:
         return releases[release_id]
     except KeyError as exc:

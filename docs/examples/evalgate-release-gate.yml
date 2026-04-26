@@ -10,6 +10,7 @@ permissions:
   contents: read
 
 env:
+  EVALGATE_CONFIG_DIR: .
   EVALGATE_BASELINE: baseline
   EVALGATE_CANDIDATE: my-service-candidate
   EVALGATE_POLICY: default
@@ -34,7 +35,7 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Validate EvalGate configuration
-        run: evalgate --validate-config
+        run: evalgate --config-dir "$EVALGATE_CONFIG_DIR" --validate-config
 
       - name: Run EvalGate release gate
         id: evalgate
@@ -44,6 +45,7 @@ jobs:
 
           set +e
           evalgate \
+            --config-dir "$EVALGATE_CONFIG_DIR" \
             --baseline "$EVALGATE_BASELINE" \
             --candidate "$EVALGATE_CANDIDATE" \
             --policy "$EVALGATE_POLICY"

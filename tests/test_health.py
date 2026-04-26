@@ -826,6 +826,128 @@ def test_validate_config_accepts_current_configuration() -> None:
     assert validate_config() == []
 
 
+def write_eval_pack(config_dir: Path) -> None:
+    (config_dir / "fixtures").mkdir(parents=True)
+    (config_dir / "services").mkdir()
+    (config_dir / "policy").mkdir()
+    (config_dir / "fixtures" / "eval_cases.json").write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": "case-pilot-001",
+                    "risk_category": "grounding",
+                    "severity": "medium",
+                    "prompt": "Answer from the supplied context only.",
+                    "expected_answer": "grounded-answer",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (config_dir / "services" / "releases.json").write_text(
+        json.dumps(
+            {
+                "releases": {
+                    "pilot-baseline": {
+                        "responses": {
+                            "case-pilot-001": {
+                                "answer": "grounded-answer",
+                                "latency_ms": 100.0,
+                                "cost_units": 1.0,
+                            }
+                        }
+                    },
+                    "pilot-candidate": {
+                        "responses": {
+                            "case-pilot-001": {
+                                "answer": "grounded-answer",
+                                "latency_ms": 105.0,
+                                "cost_units": 1.05,
+                            }
+                        }
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (config_dir / "policy" / "profiles.json").write_text(
+        json.dumps(
+            {
+                "pilot": {
+                    "description": "Pilot release policy.",
+                    "thresholds": {
+                        "max_latency_increase_pct": 0.1,
+                        "max_error_rate_increase_abs": 0.0,
+                        "max_quality_drop_pct": 0.0,
+                        "max_cost_increase_pct": 0.1,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_loaders_accept_external_config_dir(tmp_path) -> None:
+    write_eval_pack(tmp_path)
+
+    cases = load_eval_cases(tmp_path)
+    release = get_release_definition("pilot-candidate", tmp_path)
+
+    assert [case.case_id for case in cases] == ["case-pilot-001"]
+    assert release.responses["case-pilot-001"].answer == "grounded-answer"
+    assert validate_config(tmp_path) == []
+
+
+def test_validate_config_reports_missing_external_config_files(tmp_path) -> None:
+    errors = validate_config(tmp_path)
+
+    assert errors == [
+        f"Missing fixtures config file: {tmp_path / 'fixtures' / 'eval_cases.json'}",
+        f"Missing releases config file: {tmp_path / 'services' / 'releases.json'}",
+        f"Missing policy profiles config file: {tmp_path / 'policy' / 'profiles.json'}",
+    ]
+
+
+def test_cli_evaluates_with_config_dir(tmp_path, monkeypatch, capsys) -> None:
+    write_eval_pack(tmp_path)
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path / "reports")
+
+    exit_code = cli_main(
+        [
+            "--config-dir",
+            str(tmp_path),
+            "--baseline",
+            "pilot-baseline",
+            "--candidate",
+            "pilot-candidate",
+            "--policy",
+            "pilot",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "decision: promote" in captured.out
+    assert "failed cases: 0/1" in captured.out
+    assert captured.err == ""
+
+
+def test_cli_uses_evalgate_config_dir_env(tmp_path, monkeypatch, capsys) -> None:
+    write_eval_pack(tmp_path)
+    monkeypatch.setenv("EVALGATE_CONFIG_DIR", str(tmp_path))
+
+    exit_code = cli_main(["--validate-config"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "config: valid\n"
+    assert captured.err == ""
+
+
 def test_validate_config_rejects_release_with_missing_case(monkeypatch) -> None:
     cases = load_eval_cases()
     incomplete_responses = {
@@ -835,7 +957,7 @@ def test_validate_config_rejects_release_with_missing_case(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "evalgate.validation.load_release_registry",
-        lambda: {
+        lambda config_dir=None: {
             "candidate-incomplete": ReleaseDefinition(
                 release_id="candidate-incomplete",
                 responses=incomplete_responses,
@@ -851,7 +973,7 @@ def test_validate_config_rejects_release_with_missing_case(monkeypatch) -> None:
 def test_validate_config_rejects_invalid_http_release(monkeypatch) -> None:
     monkeypatch.setattr(
         "evalgate.validation.load_release_registry",
-        lambda: {
+        lambda config_dir=None: {
             "candidate-http": ReleaseDefinition(
                 release_id="candidate-http",
                 responses={},
@@ -881,7 +1003,7 @@ def test_validate_config_rejects_missing_http_endpoint_env(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "evalgate.validation.load_release_registry",
-        lambda: {"candidate-http": release},
+        lambda config_dir=None: {"candidate-http": release},
     )
 
     errors = validate_config()
@@ -892,7 +1014,7 @@ def test_validate_config_rejects_missing_http_endpoint_env(monkeypatch) -> None:
 def test_validate_config_rejects_negative_policy_threshold(monkeypatch) -> None:
     monkeypatch.setattr(
         "evalgate.validation.load_policy_profiles",
-        lambda: {
+        lambda config_dir=None: {
             "bad-policy": PolicyProfile(
                 name="bad-policy",
                 description="Invalid policy.",

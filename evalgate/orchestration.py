@@ -24,10 +24,17 @@ def run_evaluation(
     baseline_release_id: str,
     candidate_release_id: str,
     policy_name: str = "default",
+    config_dir: str | Path | None = None,
 ) -> EvaluationRun:
-    policy_profile = load_policy_profile(policy_name)
-    baseline_evaluation = evaluate_release_with_results(baseline_release_id)
-    candidate_evaluation = evaluate_release_with_results(candidate_release_id)
+    policy_profile = load_policy_profile(policy_name, config_dir)
+    baseline_evaluation = evaluate_release_with_results(
+        baseline_release_id,
+        config_dir=config_dir,
+    )
+    candidate_evaluation = evaluate_release_with_results(
+        candidate_release_id,
+        config_dir=config_dir,
+    )
     decision = evaluate_release_policy(
         baseline=baseline_evaluation.metrics,
         candidate=candidate_evaluation.metrics,
@@ -36,6 +43,7 @@ def run_evaluation(
     case_results = build_case_results(
         baseline_results=baseline_evaluation.results,
         candidate_results=candidate_evaluation.results,
+        config_dir=config_dir,
     )
     response = EvaluationResponse(
         report_id=decision.report_id,
@@ -84,8 +92,9 @@ def build_evidence_summary(
 def build_case_results(
     baseline_results: list[ServiceRunResult],
     candidate_results: list[ServiceRunResult],
+    config_dir: str | Path | None = None,
 ) -> list[CaseResult]:
-    cases_by_id = {case.case_id: case for case in load_eval_cases()}
+    cases_by_id = {case.case_id: case for case in load_eval_cases(config_dir)}
     baseline_by_id = {result.case_id: result for result in baseline_results}
     candidate_by_id = {result.case_id: result for result in candidate_results}
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -17,8 +18,8 @@ class InferenceService(Protocol):
 
 
 class DeterministicReleaseService:
-    def __init__(self, release_id: str) -> None:
-        self.release = get_release_definition(release_id)
+    def __init__(self, release_id: str, config_dir: str | Path | None = None) -> None:
+        self.release = get_release_definition(release_id, config_dir)
 
     def infer(self, case: EvalCase) -> ServiceRunResult:
         payload = self.release.responses.get(case.case_id)
@@ -121,8 +122,11 @@ def build_http_result(
     )
 
 
-def get_inference_service(release_id: str) -> InferenceService:
-    release = get_release_definition(release_id)
+def get_inference_service(
+    release_id: str,
+    config_dir: str | Path | None = None,
+) -> InferenceService:
+    release = get_release_definition(release_id, config_dir)
     if release.adapter == "http":
         return HttpReleaseService(release)
-    return DeterministicReleaseService(release_id)
+    return DeterministicReleaseService(release_id, config_dir)
