@@ -8,9 +8,11 @@ from pathlib import Path
 
 from evalgate.errors import EvalGateError
 from evalgate.orchestration import run_evaluation
+from evalgate.report_summary import SummaryFormat, build_report_summary, format_markdown_summary
 from evalgate.report_validation import (
     ReportValidationError,
     get_report_schema,
+    load_report_file,
     validate_report_file,
 )
 from evalgate.validation import ConfigValidationError, validate_config_or_raise
@@ -43,6 +45,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the EvalGate evaluation report JSON Schema.",
     )
+    parser.add_argument(
+        "--summarize-report",
+        metavar="PATH",
+        help="Summarize a persisted EvalGate JSON report.",
+    )
+    parser.add_argument(
+        "--summary-format",
+        choices=["json", "markdown"],
+        default="json",
+        help="Output format for --summarize-report.",
+    )
     return parser
 
 
@@ -56,6 +69,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.validate_report:
         return run_report_validation(Path(args.validate_report))
+
+    if args.summarize_report:
+        return run_report_summary(Path(args.summarize_report), args.summary_format)
 
     if args.validate_config:
         return run_config_validation()
@@ -118,6 +134,22 @@ def run_report_validation(path: Path) -> int:
         return 2
 
     print("report: valid")
+    return 0
+
+
+def run_report_summary(path: Path, output_format: SummaryFormat) -> int:
+    try:
+        report = load_report_file(path)
+    except ReportValidationError as exc:
+        print("report: invalid", file=sys.stderr)
+        for error in exc.errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
+
+    if output_format == "markdown":
+        print(format_markdown_summary(report))
+    else:
+        print(json.dumps(build_report_summary(report), indent=2, sort_keys=True))
     return 0
 
 
