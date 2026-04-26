@@ -899,7 +899,7 @@ def test_cli_lists_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
     assert captured.err == ""
 
 
-def test_cli_shows_indexed_report(tmp_path, monkeypatch, capsys) -> None:
+def test_cli_shows_full_report_by_id(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
     response = client.post(
         "/releases/evaluate",
@@ -919,11 +919,62 @@ def test_cli_shows_indexed_report(tmp_path, monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert payload["report_id"] == report_id
     assert payload["decision"] == "block"
-    assert payload["failed_checks"] == ["latency_p95_ms", "quality_score", "cost_proxy"]
+    assert payload["metadata"]["candidate_release_id"] == "candidate-bad"
+    assert payload["evidence_summary"]["failed_checks"] == [
+        "latency_p95_ms",
+        "quality_score",
+        "cost_proxy",
+    ]
+    assert len(payload["case_results"]) == 6
     assert captured.err == ""
 
 
+def test_cli_rejects_indexed_report_with_missing_artifact(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    report_id = "eval-abc123def456"
+    store.update_report_index(
+        {
+            "report_id": report_id,
+            "metadata": {
+                "created_at": "2026-04-26T00:00:00Z",
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-good",
+            },
+            "policy": "default",
+            "decision": "promote",
+            "evidence_summary": {
+                "failed_checks": [],
+                "failed_case_count": 0,
+                "critical_failure_count": 0,
+            },
+        }
+    )
+
+    exit_code = cli_main(["--show-report", report_id])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "report artifact: missing for indexed report:" in captured.err
+    assert f"{report_id}.json" in captured.err
+
+
 def test_cli_rejects_missing_indexed_report(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    exit_code = cli_main(["--show-report", "eval-ffffffffffff"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "report index: report not found: eval-ffffffffffff" in captured.err
+
+
+def test_cli_rejects_invalid_report_id(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
 
     exit_code = cli_main(["--show-report", "eval-missing"])
@@ -932,7 +983,7 @@ def test_cli_rejects_missing_indexed_report(tmp_path, monkeypatch, capsys) -> No
 
     assert exit_code == 2
     assert captured.out == ""
-    assert "report index: report not found: eval-missing" in captured.err
+    assert "report: invalid id" in captured.err
 
 
 def test_cli_rejects_missing_evaluation_arguments(capsys) -> None:

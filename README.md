@@ -115,7 +115,7 @@ evalgate --summarize-report reports/<report_id>.json
 evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 ```
 
-List or inspect indexed evaluation reports:
+List recent reports or inspect a saved report by ID:
 
 ```bash
 evalgate --list-reports
@@ -182,4 +182,4 @@ Repository-level GitHub features such as secret scanning and Dependabot alerts s
 
 Each evaluation run now persists a machine-readable JSON report to `reports/<report_id>.json`.
 
-That artifact is intended to be the audit trail for CI and operator workflows. EvalGate also maintains a local report index for listing recent evaluations. The report contract, decision semantics, CLI exit codes, failure explanations, summary output, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).
+That artifact is intended to be the audit trail for CI and operator workflows. EvalGate also maintains a local report index for listing recent evaluations and resolving saved reports by ID. The report contract, decision semantics, CLI exit codes, failure explanations, summary output, and field descriptions are documented in [docs/report-contract.md](docs/report-contract.md).
