@@ -126,6 +126,7 @@ List recent reports or inspect a saved report by ID:
 
 ```bash
 evalgate --list-reports
+evalgate --list-reports --report-candidate candidate-bad --report-decision block
 evalgate --show-report <report_id>
 ```
 

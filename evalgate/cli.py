@@ -65,6 +65,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="List indexed EvalGate reports.",
     )
     parser.add_argument(
+        "--report-candidate",
+        metavar="RELEASE_ID",
+        help="Filter --list-reports by candidate release ID.",
+    )
+    parser.add_argument(
+        "--report-baseline",
+        metavar="RELEASE_ID",
+        help="Filter --list-reports by baseline release ID.",
+    )
+    parser.add_argument(
+        "--report-policy",
+        metavar="POLICY",
+        help="Filter --list-reports by policy profile.",
+    )
+    parser.add_argument(
+        "--report-decision",
+        choices=["promote", "block"],
+        help="Filter --list-reports by release decision.",
+    )
+    parser.add_argument(
+        "--report-limit",
+        type=int,
+        metavar="COUNT",
+        help="Limit the number of reports returned by --list-reports.",
+    )
+    parser.add_argument(
         "--show-report",
         metavar="REPORT_ID",
         help="Show a saved EvalGate JSON report by report ID.",
@@ -95,7 +121,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_config_validation()
 
     if args.list_reports:
-        return run_list_reports()
+        return run_list_reports(
+            candidate=args.report_candidate,
+            baseline=args.report_baseline,
+            policy=args.report_policy,
+            decision=args.report_decision,
+            limit=args.report_limit,
+        )
 
     if args.show_report:
         return run_show_report(args.show_report)
@@ -180,15 +212,59 @@ def run_report_summary(path: Path, output_format: SummaryFormat) -> int:
     return 0
 
 
-def run_list_reports() -> int:
+def run_list_reports(
+    candidate: str | None = None,
+    baseline: str | None = None,
+    policy: str | None = None,
+    decision: str | None = None,
+    limit: int | None = None,
+) -> int:
+    if limit is not None and limit < 1:
+        print("report index: --report-limit must be greater than 0", file=sys.stderr)
+        return 2
+
     try:
         entries = store.load_report_index()
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"report index: invalid ({exc})", file=sys.stderr)
         return 2
 
-    print(json.dumps({"reports": entries}, indent=2, sort_keys=True))
+    filtered_entries = filter_report_entries(
+        entries,
+        candidate=candidate,
+        baseline=baseline,
+        policy=policy,
+        decision=decision,
+        limit=limit,
+    )
+    print(json.dumps({"reports": filtered_entries}, indent=2, sort_keys=True))
     return 0
+
+
+def filter_report_entries(
+    entries: list[dict[str, object]],
+    *,
+    candidate: str | None = None,
+    baseline: str | None = None,
+    policy: str | None = None,
+    decision: str | None = None,
+    limit: int | None = None,
+) -> list[dict[str, object]]:
+    filtered_entries = []
+    for entry in entries:
+        if candidate is not None and entry.get("candidate_release_id") != candidate:
+            continue
+        if baseline is not None and entry.get("baseline_release_id") != baseline:
+            continue
+        if policy is not None and entry.get("policy") != policy:
+            continue
+        if decision is not None and entry.get("decision") != decision:
+            continue
+        filtered_entries.append(entry)
+
+    if limit is not None:
+        return filtered_entries[:limit]
+    return filtered_entries
 
 
 def run_show_report(report_id: str) -> int:

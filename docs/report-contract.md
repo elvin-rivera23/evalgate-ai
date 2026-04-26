@@ -34,6 +34,7 @@ EvalGate maintains a local report index at `reports/index.json` so operators can
 
 ```bash
 evalgate --list-reports
+evalgate --list-reports --report-candidate candidate-bad --report-decision block
 evalgate --show-report <report_id>
 ```
 
@@ -186,6 +187,14 @@ The default output is JSON for automation. Markdown output is available with `--
 - `critical_failure_count`
 
 The index is runtime state, not source-controlled product configuration. CI and local runs can regenerate it from new evaluations. The index is not a replacement for the full report artifact; it is the lookup table for recent evaluation metadata.
+
+`--list-reports` can filter indexed history with:
+
+- `--report-candidate <release_id>`
+- `--report-baseline <release_id>`
+- `--report-policy <policy>`
+- `--report-decision promote|block`
+- `--report-limit <count>`
 
 ## Blocked Report Example
 
