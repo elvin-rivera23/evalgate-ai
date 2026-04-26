@@ -38,6 +38,15 @@ def validate_config() -> list[str]:
 
     releases = load_release_registry()
     for release_id, release in releases.items():
+        if release.adapter == "http":
+            if not release.endpoint:
+                errors.append(f"Release {release_id} HTTP adapter is missing endpoint.")
+            elif not release.endpoint.startswith(("http://", "https://")):
+                errors.append(f"Release {release_id} HTTP endpoint must use http or https.")
+            if release.timeout_seconds <= 0:
+                errors.append(f"Release {release_id} HTTP timeout must be greater than 0.")
+            continue
+
         response_ids = set(release.responses)
         missing_cases = case_id_set - response_ids
         extra_cases = response_ids - case_id_set

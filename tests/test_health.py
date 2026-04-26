@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from evalgate.cli import main as cli_main
+from evalgate.errors import ServiceAdapterError
 from evalgate.report_summary import build_report_summary, format_markdown_summary
 from evalgate.report_validation import (
     ReportValidationError,
@@ -23,10 +24,11 @@ from evaluator.runner import evaluate_release_with_results
 from policy.engine import evaluate_release_policy
 from policy.models import PolicyProfile, PolicyThresholds
 from reporting import store
-from services.adapters import DeterministicReleaseService
+from services.adapters import DeterministicReleaseService, HttpReleaseService, build_http_result
 from services.registry import (
     ReleaseDefinition,
     ReleaseResponse,
+    build_release_definition,
     get_release_definition,
     load_release_registry,
 )
@@ -652,6 +654,29 @@ def test_evaluate_release_rejects_unknown_release() -> None:
     assert response.json() == {"detail": "Unknown release_id: missing-release"}
 
 
+def test_evaluate_release_reports_adapter_error(monkeypatch) -> None:
+    def fail_evaluation(baseline_release_id, candidate_release_id, policy_name):
+        raise ServiceAdapterError(candidate_release_id, "request failed for case case-001.")
+
+    monkeypatch.setattr("api.main.run_evaluation", fail_evaluation)
+
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-http"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": (
+            "Release candidate-http adapter error: request failed for case case-001."
+        )
+    }
+
+
 def test_release_registry_loads_known_release() -> None:
     release = get_release_definition("candidate-risky")
 
@@ -665,6 +690,37 @@ def test_release_registry_aliases_candidate_bad_to_risky_release() -> None:
 
     assert candidate_bad.release_id == "candidate-bad"
     assert candidate_bad.responses == candidate_risky.responses
+
+
+def test_release_registry_loads_http_release_definition() -> None:
+    release = build_release_definition(
+        "candidate-http",
+        {
+            "adapter": "http",
+            "endpoint": "http://127.0.0.1:8080/evaluate",
+            "timeout_seconds": 3,
+        },
+    )
+
+    assert release.release_id == "candidate-http"
+    assert release.adapter == "http"
+    assert release.endpoint == "http://127.0.0.1:8080/evaluate"
+    assert release.timeout_seconds == 3
+    assert release.responses == {}
+
+
+def test_release_registry_expands_http_endpoint_from_env(monkeypatch) -> None:
+    monkeypatch.setenv("EVALGATE_TEST_ENDPOINT", "http://127.0.0.1:9000/evaluate")
+
+    release = build_release_definition(
+        "candidate-http",
+        {
+            "adapter": "http",
+            "endpoint": "${EVALGATE_TEST_ENDPOINT}",
+        },
+    )
+
+    assert release.endpoint == "http://127.0.0.1:9000/evaluate"
 
 
 def test_release_registry_covers_all_eval_cases() -> None:
@@ -686,6 +742,74 @@ def test_deterministic_release_service_returns_case_result() -> None:
     assert result.latency_ms == 180.0
     assert result.cost_units == 1.4
     assert result.is_error is False
+
+
+def test_http_release_service_posts_case_contract(monkeypatch) -> None:
+    captured = {}
+    release = ReleaseDefinition(
+        release_id="candidate-http",
+        responses={},
+        adapter="http",
+        endpoint="http://127.0.0.1:8080/evaluate",
+        timeout_seconds=2,
+    )
+    service = HttpReleaseService(release)
+    case = next(case for case in load_eval_cases() if case.case_id == "case-001")
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "answer": "refuse-injection",
+                    "latency_ms": 123,
+                    "cost_units": 1.2,
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        captured["headers"] = dict(request.header_items())
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr("services.adapters.urlopen", fake_urlopen)
+
+    result = service.infer(case)
+
+    assert captured["url"] == "http://127.0.0.1:8080/evaluate"
+    assert captured["timeout"] == 2
+    assert captured["headers"]["Content-type"] == "application/json"
+    assert captured["payload"] == {
+        "release_id": "candidate-http",
+        "case_id": "case-001",
+        "risk_category": "prompt_injection",
+        "severity": "critical",
+        "prompt": case.prompt,
+        "expected_answer": "refuse-injection",
+    }
+    assert result.case_id == "case-001"
+    assert result.answer == "refuse-injection"
+    assert result.latency_ms == 123
+    assert result.cost_units == 1.2
+    assert result.is_error is False
+
+
+def test_http_result_rejects_malformed_response() -> None:
+    with pytest.raises(ServiceAdapterError) as exc_info:
+        build_http_result(
+            "candidate-http",
+            "case-001",
+            {"answer": "ok", "latency_ms": "slow", "cost_units": 1.0},
+        )
+
+    assert "invalid numeric metrics" in str(exc_info.value)
 
 
 def test_evaluator_accepts_inference_service_adapter() -> None:
@@ -722,6 +846,47 @@ def test_validate_config_rejects_release_with_missing_case(monkeypatch) -> None:
     errors = validate_config()
 
     assert errors == ["Release candidate-incomplete is missing responses for: case-006."]
+
+
+def test_validate_config_rejects_invalid_http_release(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "evalgate.validation.load_release_registry",
+        lambda: {
+            "candidate-http": ReleaseDefinition(
+                release_id="candidate-http",
+                responses={},
+                adapter="http",
+                endpoint="ftp://internal.example/evaluate",
+                timeout_seconds=0,
+            )
+        },
+    )
+
+    errors = validate_config()
+
+    assert errors == [
+        "Release candidate-http HTTP endpoint must use http or https.",
+        "Release candidate-http HTTP timeout must be greater than 0.",
+    ]
+
+
+def test_validate_config_rejects_missing_http_endpoint_env(monkeypatch) -> None:
+    monkeypatch.delenv("EVALGATE_MISSING_ENDPOINT", raising=False)
+    release = build_release_definition(
+        "candidate-http",
+        {
+            "adapter": "http",
+            "endpoint": "${EVALGATE_MISSING_ENDPOINT}",
+        },
+    )
+    monkeypatch.setattr(
+        "evalgate.validation.load_release_registry",
+        lambda: {"candidate-http": release},
+    )
+
+    errors = validate_config()
+
+    assert errors == ["Release candidate-http HTTP adapter is missing endpoint."]
 
 
 def test_validate_config_rejects_negative_policy_threshold(monkeypatch) -> None:

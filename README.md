@@ -44,6 +44,7 @@ The higher-level product and architecture writeup lives in [docs/overview.md](do
 ## What It Does
 
 - compares baseline and candidate releases against the same AI-risk fixture set
+- supports deterministic sample releases and HTTP-backed service adapters
 - detects regressions in latency, reliability, quality, and cost proxy
 - applies config-backed policy profiles instead of ad hoc release judgment
 - persists JSON decision reports with policy checks, metric deltas, and per-case evidence
@@ -185,6 +186,8 @@ The sample releases include `candidate-good`, `candidate-risky`, `candidate-expe
 Evaluation cases live in `fixtures/eval_cases.json`. Deterministic release behavior lives in `services/releases.json`, so adding a sample release does not require changing the service runtime code.
 
 The evaluator calls an inference service adapter. The repository ships a deterministic registry-backed adapter for local development and CI.
+
+HTTP-backed releases are documented in [docs/service-adapters.md](docs/service-adapters.md). They let a team point EvalGate at a local or internal service endpoint without using paid model APIs or hosted infrastructure.
 
 ## Policy Profiles
 
