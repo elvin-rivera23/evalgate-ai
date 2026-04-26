@@ -4,6 +4,14 @@ EvalGate writes one JSON report for each release evaluation. The report is the d
 
 Reports are persisted at `reports/<report_id>.json` and returned by `POST /releases/evaluate`.
 
+The built-in demo exercises the report workflow end to end:
+
+```bash
+evalgate --demo
+```
+
+The demo generates one passing report and one blocking report, then prints a Markdown summary, a Markdown triage view, and recent blocked history from the report index.
+
 The report contract is also available as JSON Schema:
 
 ```bash

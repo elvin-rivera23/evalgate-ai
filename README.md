@@ -88,6 +88,14 @@ evalgate --baseline baseline --candidate candidate-good --policy default
 
 The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
 
+Run the built-in end-to-end demo:
+
+```bash
+evalgate --demo
+```
+
+The demo evaluates a passing candidate and a blocking candidate, prints the passing report summary, prints the blocked report triage, and shows recent blocked history for `candidate-bad`.
+
 Validate local EvalGate configuration:
 
 ```bash
