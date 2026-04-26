@@ -4,22 +4,25 @@ import json
 from dataclasses import fields
 from pathlib import Path
 
+from evalgate.config import get_config_paths
 from evalgate.errors import UnsupportedPolicyError
 from policy.models import PolicyProfile, PolicyThresholds
 
-PROFILES_PATH = Path(__file__).with_name("profiles.json")
 
-
-def load_policy_profile(policy_name: str) -> PolicyProfile:
-    profiles = load_policy_profiles()
+def load_policy_profile(
+    policy_name: str,
+    config_dir: str | Path | None = None,
+) -> PolicyProfile:
+    profiles = load_policy_profiles(config_dir)
     try:
         return profiles[policy_name]
     except KeyError as exc:
         raise UnsupportedPolicyError(policy_name) from exc
 
 
-def load_policy_profiles() -> dict[str, PolicyProfile]:
-    payload = json.loads(PROFILES_PATH.read_text(encoding="utf-8"))
+def load_policy_profiles(config_dir: str | Path | None = None) -> dict[str, PolicyProfile]:
+    profiles_path = get_config_paths(config_dir).policy_profiles_path
+    payload = json.loads(profiles_path.read_text(encoding="utf-8"))
     return {
         name: PolicyProfile(
             name=name,

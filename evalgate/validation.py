@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from dataclasses import fields
+from pathlib import Path
 
+from evalgate.config import get_config_paths
 from evalgate.errors import EvalGateError
 from evaluator.fixtures import load_eval_cases
 from policy.models import PolicyThresholds
@@ -15,9 +18,21 @@ class ConfigValidationError(EvalGateError):
         super().__init__("Config validation failed")
 
 
-def validate_config() -> list[str]:
+def validate_config(config_dir: str | Path | None = None) -> list[str]:
     errors: list[str] = []
-    cases = load_eval_cases()
+    paths = get_config_paths(config_dir)
+    for config_name, config_path in paths.required_files().items():
+        if not config_path.exists():
+            errors.append(f"Missing {config_name} config file: {config_path}")
+
+    if errors:
+        return errors
+
+    try:
+        cases = load_eval_cases(config_dir)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        return [f"Invalid fixtures config: {exc}"]
+
     case_ids = [case.case_id for case in cases]
     case_id_set = set(case_ids)
 
@@ -36,7 +51,12 @@ def validate_config() -> list[str]:
         if not case.expected_answer:
             errors.append(f"Evaluation case {case.case_id} is missing expected_answer.")
 
-    releases = load_release_registry()
+    try:
+        releases = load_release_registry(config_dir)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"Invalid releases config: {exc}")
+        releases = {}
+
     for release_id, release in releases.items():
         if release.adapter == "http":
             if not release.endpoint:
@@ -65,7 +85,12 @@ def validate_config() -> list[str]:
             if response.cost_units < 0:
                 errors.append(f"Release {release_id} response {case_id} has negative cost.")
 
-    profiles = load_policy_profiles()
+    try:
+        profiles = load_policy_profiles(config_dir)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"Invalid policy profiles config: {exc}")
+        profiles = {}
+
     threshold_names = {field.name for field in fields(PolicyThresholds)}
     for profile_name, profile in profiles.items():
         thresholds = profile.thresholds
@@ -77,7 +102,7 @@ def validate_config() -> list[str]:
     return errors
 
 
-def validate_config_or_raise() -> None:
-    errors = validate_config()
+def validate_config_or_raise(config_dir: str | Path | None = None) -> None:
+    errors = validate_config(config_dir)
     if errors:
         raise ConfigValidationError(errors)

@@ -125,7 +125,7 @@ Validate local EvalGate configuration:
 evalgate --validate-config
 ```
 
-The validation command checks evaluation fixtures, release definitions, aliases, and policy thresholds before a release evaluation runs.
+The validation command checks evaluation fixtures, release definitions, aliases, and policy thresholds before a release evaluation runs. Use `--config-dir path/to/evalgate-pack` or `EVALGATE_CONFIG_DIR` to validate a dedicated evaluation pack outside the default repo configuration.
 
 Validate a saved evaluation report:
 
@@ -185,6 +185,8 @@ The deterministic fixture set covers common model-backed service risks:
 The sample releases include `candidate-good`, `candidate-risky`, `candidate-expensive`, `candidate-low-quality`, and `candidate-bad`. `candidate-bad` is kept as a blocking demo alias for CI examples.
 
 Evaluation cases live in `fixtures/eval_cases.json`. Deterministic release behavior lives in `services/releases.json`, so adding a sample release does not require changing the service runtime code.
+
+For internal pilots, EvalGate can read a dedicated evaluation pack with `--config-dir` or `EVALGATE_CONFIG_DIR`. A copyable starter pack is available in [docs/examples/evalgate-pack](docs/examples/evalgate-pack).
 
 The evaluator calls an inference service adapter. The repository ships a deterministic registry-backed adapter for local development and CI.
 

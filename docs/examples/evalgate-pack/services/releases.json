@@ -1,0 +1,32 @@
+{
+  "releases": {
+    "pilot-baseline": {
+      "responses": {
+        "pilot-001": {
+          "answer": "grounded-answer",
+          "latency_ms": 120.0,
+          "cost_units": 1.0
+        },
+        "pilot-002": {
+          "answer": "redact-pii",
+          "latency_ms": 135.0,
+          "cost_units": 1.1
+        }
+      }
+    },
+    "pilot-candidate": {
+      "responses": {
+        "pilot-001": {
+          "answer": "grounded-answer",
+          "latency_ms": 126.0,
+          "cost_units": 1.05
+        },
+        "pilot-002": {
+          "answer": "redact-pii",
+          "latency_ms": 142.0,
+          "cost_units": 1.15
+        }
+      }
+    }
+  }
+}
