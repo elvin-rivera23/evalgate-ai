@@ -14,11 +14,11 @@ candidate: candidate-good
 policy: default
 ```
 
-The automated check uses `candidate-good` because CI should prove EvalGate can run and pass for a valid release. A blocking candidate would intentionally fail every pull request. The workflow also validates the generated JSON report with `evalgate --validate-report`, publishes a Markdown report summary to the GitHub Actions job summary, comments that summary on pull requests, and uploads the report as an artifact.
+The automated check uses `candidate-good` because CI should prove EvalGate can run and pass for a valid release. A blocking candidate would intentionally fail every pull request. The workflow also validates the generated JSON report with `evalgate --validate-report`, publishes a Markdown report summary to the GitHub Actions job summary, comments that summary on pull requests, and uploads the report and report index as artifacts.
 
 Pull request comments use the `<!-- evalgate-summary -->` marker so reruns update the existing EvalGate comment instead of creating a new thread.
 
-The repository also includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, validates the generated JSON report, publishes a Markdown report summary, and uploads the report as a workflow artifact.
+The repository also includes `.github/workflows/evalgate-release-gate.yml` as a manual GitHub Actions workflow. It installs EvalGate, evaluates a selected baseline and candidate release, validates the generated JSON report, publishes a Markdown report summary, and uploads the report and report index as workflow artifacts.
 
 Run the workflow with the default inputs to evaluate a passing candidate:
 

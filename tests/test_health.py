@@ -317,6 +317,118 @@ def test_evaluate_release_persists_json_report(tmp_path, monkeypatch) -> None:
     assert json.loads(report_path.read_text()) == payload
 
 
+def test_evaluate_release_indexes_json_report(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    index = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+
+    assert index == {
+        "reports": [
+            {
+                "report_id": payload["report_id"],
+                "created_at": payload["metadata"]["created_at"],
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-bad",
+                "policy": "default",
+                "decision": "block",
+                "failed_checks": ["latency_p95_ms", "quality_score", "cost_proxy"],
+                "failed_case_count": 4,
+                "critical_failure_count": 3,
+            }
+        ]
+    }
+
+
+def test_report_index_replaces_existing_report_entry(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    payload = {
+        "report_id": "eval-abc123def456",
+        "metadata": {
+            "created_at": "2026-04-26T00:00:00Z",
+            "baseline_release_id": "baseline",
+            "candidate_release_id": "candidate-good",
+        },
+        "policy": "default",
+        "decision": "promote",
+        "evidence_summary": {
+            "failed_checks": [],
+            "failed_case_count": 0,
+            "critical_failure_count": 0,
+        },
+    }
+
+    store.update_report_index(payload)
+    updated_payload = {
+        **payload,
+        "decision": "block",
+        "evidence_summary": {
+            "failed_checks": ["quality_score"],
+            "failed_case_count": 1,
+            "critical_failure_count": 1,
+        },
+    }
+    store.update_report_index(updated_payload)
+
+    entries = store.load_report_index()
+
+    assert len(entries) == 1
+    assert entries[0]["decision"] == "block"
+    assert entries[0]["failed_checks"] == ["quality_score"]
+
+
+def test_report_index_sorts_newest_first(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    first = {
+        "report_id": "eval-111111111111",
+        "metadata": {
+            "created_at": "2026-04-26T00:00:00Z",
+            "baseline_release_id": "baseline",
+            "candidate_release_id": "candidate-good",
+        },
+        "policy": "default",
+        "decision": "promote",
+        "evidence_summary": {
+            "failed_checks": [],
+            "failed_case_count": 0,
+            "critical_failure_count": 0,
+        },
+    }
+    second = {
+        "report_id": "eval-222222222222",
+        "metadata": {
+            "created_at": "2026-04-26T01:00:00Z",
+            "baseline_release_id": "baseline",
+            "candidate_release_id": "candidate-bad",
+        },
+        "policy": "default",
+        "decision": "block",
+        "evidence_summary": {
+            "failed_checks": ["quality_score"],
+            "failed_case_count": 1,
+            "critical_failure_count": 1,
+        },
+    }
+
+    store.update_report_index(first)
+    store.update_report_index(second)
+
+    assert [entry["report_id"] for entry in store.load_report_index()] == [
+        "eval-222222222222",
+        "eval-111111111111",
+    ]
+
+
 def test_evaluation_report_top_level_schema_is_stable(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
 
@@ -763,6 +875,64 @@ def test_cli_rejects_invalid_report_summary(tmp_path, capsys) -> None:
     assert captured.out == ""
     assert "report: invalid" in captured.err
     assert "report_id: Field required" in captured.err
+
+
+def test_cli_lists_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+
+    exit_code = cli_main(["--list-reports"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["reports"][0]["report_id"] == response.json()["report_id"]
+    assert payload["reports"][0]["decision"] == "promote"
+    assert captured.err == ""
+
+
+def test_cli_shows_indexed_report(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-bad"},
+            "policy": "default",
+        },
+    )
+    report_id = response.json()["report_id"]
+
+    exit_code = cli_main(["--show-report", report_id])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["report_id"] == report_id
+    assert payload["decision"] == "block"
+    assert payload["failed_checks"] == ["latency_p95_ms", "quality_score", "cost_proxy"]
+    assert captured.err == ""
+
+
+def test_cli_rejects_missing_indexed_report(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    exit_code = cli_main(["--show-report", "eval-missing"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "report index: report not found: eval-missing" in captured.err
 
 
 def test_cli_rejects_missing_evaluation_arguments(capsys) -> None:

@@ -122,13 +122,13 @@ jobs:
           rm -f reports/*.json
           evalgate --baseline baseline --candidate candidate-good --policy default
 
-          report_count="$(find reports -maxdepth 1 -type f -name '*.json' | wc -l)"
+          report_count="$(find reports -maxdepth 1 -type f -name 'eval-*.json' | wc -l)"
           if [ "$report_count" -ne 1 ]; then
             echo "::error::Expected exactly one EvalGate report, found $report_count."
             exit 2
           fi
 
-          report_path="$(find reports -maxdepth 1 -type f -name '*.json' -print -quit)"
+          report_path="$(find reports -maxdepth 1 -type f -name 'eval-*.json' -print -quit)"
           evalgate --validate-report "$report_path"
           echo "report_path=$report_path" >> "$GITHUB_OUTPUT"
 
@@ -178,5 +178,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: evalgate-ci-reports
-          path: reports/*.json
+          path: |
+            reports/eval-*.json
+            reports/index.json
           if-no-files-found: warn
