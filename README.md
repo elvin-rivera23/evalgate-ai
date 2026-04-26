@@ -96,6 +96,18 @@ evalgate --validate-config
 
 The validation command checks evaluation fixtures, release definitions, aliases, and policy thresholds before a release evaluation runs.
 
+Validate a saved evaluation report:
+
+```bash
+evalgate --validate-report reports/<report_id>.json
+```
+
+Print the evaluation report JSON Schema:
+
+```bash
+evalgate --print-report-schema
+```
+
 ## CI Release Gate
 
 EvalGate can be used as a CI release gate because the CLI returns nonzero exit codes for blocked releases and invalid evaluation requests.

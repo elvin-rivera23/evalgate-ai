@@ -9,6 +9,12 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from evalgate.cli import main as cli_main
+from evalgate.report_validation import (
+    ReportValidationError,
+    get_report_schema,
+    validate_report_file,
+    validate_report_payload,
+)
 from evalgate.validation import validate_config
 from evaluator.fixtures import load_eval_cases
 from evaluator.runner import evaluate_release_with_results
@@ -290,6 +296,67 @@ def test_evaluation_report_top_level_schema_is_stable(tmp_path, monkeypatch) -> 
     }
 
 
+def test_generated_evaluation_report_validates_against_contract(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+
+    assert response.status_code == 200
+    report_path = tmp_path / f"{response.json()['report_id']}.json"
+
+    validate_report_file(report_path)
+
+
+def test_report_contract_rejects_extra_top_level_fields() -> None:
+    payload = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    ).json()
+    payload["unexpected"] = "field"
+
+    with pytest.raises(ReportValidationError) as exc_info:
+        validate_report_payload(payload)
+
+    assert "unexpected: Extra inputs are not permitted" in exc_info.value.errors
+
+
+def test_report_contract_rejects_invalid_decision_value() -> None:
+    payload = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    ).json()
+    payload["decision"] = "ship-it"
+
+    with pytest.raises(ReportValidationError) as exc_info:
+        validate_report_payload(payload)
+
+    assert any(error.startswith("decision:") for error in exc_info.value.errors)
+
+
+def test_report_schema_export_includes_report_contract_fields() -> None:
+    schema = get_report_schema()
+
+    assert schema["type"] == "object"
+    assert schema["additionalProperties"] is False
+    assert "decision" in schema["properties"]
+    assert schema["properties"]["report_id"]["pattern"] == "^eval-[a-f0-9]{12}$"
+
+
 def test_evaluate_release_rejects_unsupported_policy() -> None:
     response = client.post(
         "/releases/evaluate",
@@ -414,6 +481,53 @@ def test_cli_validates_config_successfully(capsys) -> None:
 
     assert exit_code == 0
     assert captured.out == "config: valid\n"
+    assert captured.err == ""
+
+
+def test_cli_validates_report_successfully(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    response = client.post(
+        "/releases/evaluate",
+        json={
+            "baseline": {"release_id": "baseline"},
+            "candidate": {"release_id": "candidate-good"},
+            "policy": "default",
+        },
+    )
+    report_path = tmp_path / f"{response.json()['report_id']}.json"
+
+    exit_code = cli_main(["--validate-report", str(report_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "report: valid\n"
+    assert captured.err == ""
+
+
+def test_cli_rejects_invalid_report(tmp_path, capsys) -> None:
+    report_path = tmp_path / "invalid-report.json"
+    report_path.write_text('{"decision": "promote"}', encoding="utf-8")
+
+    exit_code = cli_main(["--validate-report", str(report_path)])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "report: invalid" in captured.err
+    assert "report_id: Field required" in captured.err
+
+
+def test_cli_prints_report_schema(capsys) -> None:
+    exit_code = cli_main(["--print-report-schema"])
+
+    captured = capsys.readouterr()
+    schema = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert schema["title"] == "EvaluationResponse"
+    assert "case_results" in schema["properties"]
     assert captured.err == ""
 
 

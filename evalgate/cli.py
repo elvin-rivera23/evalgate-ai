@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from evalgate.errors import EvalGateError
 from evalgate.orchestration import run_evaluation
+from evalgate.report_validation import (
+    ReportValidationError,
+    get_report_schema,
+    validate_report_file,
+)
 from evalgate.validation import ConfigValidationError, validate_config_or_raise
 
 
@@ -26,6 +33,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Validate EvalGate fixture, release, and policy configuration.",
     )
+    parser.add_argument(
+        "--validate-report",
+        metavar="PATH",
+        help="Validate a persisted EvalGate JSON report against the report contract.",
+    )
+    parser.add_argument(
+        "--print-report-schema",
+        action="store_true",
+        help="Print the EvalGate evaluation report JSON Schema.",
+    )
     return parser
 
 
@@ -33,12 +50,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.print_report_schema:
+        print(json.dumps(get_report_schema(), indent=2, sort_keys=True))
+        return 0
+
+    if args.validate_report:
+        return run_report_validation(Path(args.validate_report))
+
     if args.validate_config:
         return run_config_validation()
 
     if not args.baseline or not args.candidate:
         print(
-            "error: --baseline and --candidate are required unless --validate-config is used.",
+            "error: --baseline and --candidate are required unless a validation option is used.",
             file=sys.stderr,
         )
         return 2
@@ -81,6 +105,19 @@ def run_config_validation() -> int:
         return 2
 
     print("config: valid")
+    return 0
+
+
+def run_report_validation(path: Path) -> int:
+    try:
+        validate_report_file(path)
+    except ReportValidationError as exc:
+        print("report: invalid", file=sys.stderr)
+        for error in exc.errors:
+            print(f"- {error}", file=sys.stderr)
+        return 2
+
+    print("report: valid")
     return 0
 
 

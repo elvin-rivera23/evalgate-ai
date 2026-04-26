@@ -4,6 +4,18 @@ EvalGate writes one JSON report for each release evaluation. The report is the d
 
 Reports are persisted at `reports/<report_id>.json` and returned by `POST /releases/evaluate`.
 
+The report contract is also available as JSON Schema:
+
+```bash
+evalgate --print-report-schema
+```
+
+Saved reports can be validated before ingestion by CI, dashboards, or release automation:
+
+```bash
+evalgate --validate-report reports/<report_id>.json
+```
+
 ## Decision Semantics
 
 The `decision` field is the release gate output:
@@ -39,7 +51,7 @@ The top-level report shape is intentionally stable:
 }
 ```
 
-Consumers should treat new top-level fields as additive, but existing fields should not be renamed or removed without an explicit contract migration.
+Report validation rejects unexpected fields. Contract changes that add, rename, or remove fields should be shipped as explicit schema changes with matching documentation and tests.
 
 ## Metadata
 
