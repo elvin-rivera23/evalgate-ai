@@ -1,0 +1,74 @@
+name: EvalGate Release Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EVALGATE_BASELINE: baseline
+  EVALGATE_CANDIDATE: my-service-candidate
+  EVALGATE_POLICY: default
+  EVALGATE_MY_SERVICE_ENDPOINT: ${{ secrets.EVALGATE_MY_SERVICE_ENDPOINT }}
+
+jobs:
+  evalgate:
+    name: Evaluate candidate release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evaluation repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install EvalGate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Validate EvalGate configuration
+        run: evalgate --validate-config
+
+      - name: Run EvalGate release gate
+        id: evalgate
+        run: |
+          mkdir -p reports
+          rm -f reports/*.json
+
+          set +e
+          evalgate \
+            --baseline "$EVALGATE_BASELINE" \
+            --candidate "$EVALGATE_CANDIDATE" \
+            --policy "$EVALGATE_POLICY"
+          evalgate_status=$?
+          set -e
+
+          report_count="$(find reports -maxdepth 1 -type f -name 'eval-*.json' | wc -l)"
+          if [ "$report_count" -ne 1 ]; then
+            echo "::error::Expected exactly one EvalGate report, found $report_count."
+            exit 2
+          fi
+
+          report_path="$(find reports -maxdepth 1 -type f -name 'eval-*.json' -print -quit)"
+          evalgate --validate-report "$report_path"
+          evalgate --summarize-report "$report_path" --summary-format markdown >> "$GITHUB_STEP_SUMMARY"
+          echo "report_path=$report_path" >> "$GITHUB_OUTPUT"
+
+          exit "$evalgate_status"
+
+      - name: Upload EvalGate reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evalgate-reports
+          path: |
+            reports/eval-*.json
+            reports/index.json
+          if-no-files-found: warn

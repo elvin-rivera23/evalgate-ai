@@ -40,6 +40,7 @@ Look for these sections in the output:
 - `Recent Blocked Candidate History`
 
 The higher-level product and architecture writeup lives in [docs/overview.md](docs/overview.md).
+Teams evaluating EvalGate internally can follow [docs/pilot-onboarding.md](docs/pilot-onboarding.md).
 
 ## What It Does
 
@@ -190,6 +191,7 @@ The evaluator calls an inference service adapter. The repository ships a determi
 HTTP-backed releases are documented in [docs/service-adapters.md](docs/service-adapters.md). They let a team point EvalGate at a local or internal service endpoint without using paid model APIs or hosted infrastructure.
 
 Fixture and policy authoring guidance is available in [docs/fixtures-and-policies.md](docs/fixtures-and-policies.md).
+The pilot onboarding path and copyable CI example are available in [docs/pilot-onboarding.md](docs/pilot-onboarding.md).
 
 ## Policy Profiles
 

@@ -68,6 +68,7 @@ EvalGate is designed to leave release evidence behind instead of only returning 
 
 HTTP service adapter details are documented in [service-adapters.md](service-adapters.md).
 Fixture and policy authoring guidance is documented in [fixtures-and-policies.md](fixtures-and-policies.md).
+Pilot onboarding and a copyable CI workflow are documented in [pilot-onboarding.md](pilot-onboarding.md).
 
 ## Report Contract
 
