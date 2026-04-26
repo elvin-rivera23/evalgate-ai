@@ -23,6 +23,13 @@ evalgate --summarize-report reports/<report_id>.json
 evalgate --summarize-report reports/<report_id>.json --summary-format markdown
 ```
 
+EvalGate maintains a local report index at `reports/index.json` so operators can list recent evaluations:
+
+```bash
+evalgate --list-reports
+evalgate --show-report <report_id>
+```
+
 ## Decision Semantics
 
 The `decision` field is the release gate output:
@@ -143,6 +150,22 @@ The default JSON summary includes:
 - `failed_risk_categories`
 
 Markdown output is available with `--summary-format markdown` for PR comments and release notes.
+
+## Report Index
+
+`reports/index.json` stores compact metadata for each saved report:
+
+- `report_id`
+- `created_at`
+- `baseline_release_id`
+- `candidate_release_id`
+- `policy`
+- `decision`
+- `failed_checks`
+- `failed_case_count`
+- `critical_failure_count`
+
+The index is runtime state, not source-controlled product configuration. CI and local runs can regenerate it from new evaluations.
 
 ## Blocked Report Example
 

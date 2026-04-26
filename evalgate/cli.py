@@ -16,6 +16,7 @@ from evalgate.report_validation import (
     validate_report_file,
 )
 from evalgate.validation import ConfigValidationError, validate_config_or_raise
+from reporting import store
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,6 +57,16 @@ def build_parser() -> argparse.ArgumentParser:
         default="json",
         help="Output format for --summarize-report.",
     )
+    parser.add_argument(
+        "--list-reports",
+        action="store_true",
+        help="List indexed EvalGate reports.",
+    )
+    parser.add_argument(
+        "--show-report",
+        metavar="REPORT_ID",
+        help="Show one indexed EvalGate report entry by report ID.",
+    )
     return parser
 
 
@@ -75,6 +86,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.validate_config:
         return run_config_validation()
+
+    if args.list_reports:
+        return run_list_reports()
+
+    if args.show_report:
+        return run_show_report(args.show_report)
 
     if not args.baseline or not args.candidate:
         print(
@@ -151,6 +168,33 @@ def run_report_summary(path: Path, output_format: SummaryFormat) -> int:
     else:
         print(json.dumps(build_report_summary(report), indent=2, sort_keys=True))
     return 0
+
+
+def run_list_reports() -> int:
+    try:
+        entries = store.load_report_index()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"report index: invalid ({exc})", file=sys.stderr)
+        return 2
+
+    print(json.dumps({"reports": entries}, indent=2, sort_keys=True))
+    return 0
+
+
+def run_show_report(report_id: str) -> int:
+    try:
+        entries = store.load_report_index()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"report index: invalid ({exc})", file=sys.stderr)
+        return 2
+
+    for entry in entries:
+        if entry.get("report_id") == report_id:
+            print(json.dumps(entry, indent=2, sort_keys=True))
+            return 0
+
+    print(f"report index: report not found: {report_id}", file=sys.stderr)
+    return 2
 
 
 def format_list(values: list[str]) -> str:
