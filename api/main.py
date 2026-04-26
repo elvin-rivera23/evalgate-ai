@@ -4,7 +4,7 @@ from api.schemas import EvaluationRequest, EvaluationResponse, HealthResponse
 from evalgate.errors import ServiceAdapterError, UnknownReleaseError, UnsupportedPolicyError
 from evalgate.orchestration import run_evaluation
 
-app = FastAPI(title="EvalGate AI", version="0.1.0")
+app = FastAPI(title="EvalGate AI", version="0.2.0")
 
 
 @app.get("/health", response_model=HealthResponse)

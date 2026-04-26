@@ -59,7 +59,7 @@ def test_evaluate_release_promotes_candidate_within_thresholds() -> None:
     assert payload["metadata"]["baseline_release_id"] == "baseline"
     assert payload["metadata"]["candidate_release_id"] == "candidate-good"
     assert payload["metadata"]["policy"] == "default"
-    assert payload["metadata"]["evalgate_version"] == "0.1.0"
+    assert payload["metadata"]["evalgate_version"] == "0.2.0"
     created_at = datetime.fromisoformat(payload["metadata"]["created_at"].replace("Z", "+00:00"))
     assert created_at.tzinfo == UTC
     assert payload["decision"] == "promote"

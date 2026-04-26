@@ -41,6 +41,8 @@ Look for these sections in the output:
 
 The higher-level product and architecture writeup lives in [docs/overview.md](docs/overview.md).
 Teams evaluating EvalGate internally can follow [docs/pilot-onboarding.md](docs/pilot-onboarding.md).
+A demo walkthrough is available in [docs/demo.md](docs/demo.md).
+Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## What It Does
 
