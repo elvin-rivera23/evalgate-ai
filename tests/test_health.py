@@ -964,6 +964,121 @@ def test_cli_lists_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
     assert captured.err == ""
 
 
+def test_cli_filters_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    store.save_index(
+        [
+            {
+                "report_id": "eval-333333333333",
+                "created_at": "2026-04-26T03:00:00Z",
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-bad",
+                "policy": "strict",
+                "decision": "block",
+                "failed_checks": ["quality_score"],
+                "failed_case_count": 2,
+                "critical_failure_count": 1,
+            },
+            {
+                "report_id": "eval-222222222222",
+                "created_at": "2026-04-26T02:00:00Z",
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-good",
+                "policy": "default",
+                "decision": "promote",
+                "failed_checks": [],
+                "failed_case_count": 0,
+                "critical_failure_count": 0,
+            },
+            {
+                "report_id": "eval-111111111111",
+                "created_at": "2026-04-26T01:00:00Z",
+                "baseline_release_id": "baseline-old",
+                "candidate_release_id": "candidate-bad",
+                "policy": "default",
+                "decision": "block",
+                "failed_checks": ["latency_p95_ms"],
+                "failed_case_count": 1,
+                "critical_failure_count": 0,
+            },
+        ]
+    )
+
+    exit_code = cli_main(
+        [
+            "--list-reports",
+            "--report-candidate",
+            "candidate-bad",
+            "--report-decision",
+            "block",
+            "--report-policy",
+            "default",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert [report["report_id"] for report in payload["reports"]] == [
+        "eval-111111111111"
+    ]
+    assert captured.err == ""
+
+
+def test_cli_limits_indexed_reports(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+    store.save_index(
+        [
+            {
+                "report_id": "eval-222222222222",
+                "created_at": "2026-04-26T02:00:00Z",
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-good",
+                "policy": "default",
+                "decision": "promote",
+                "failed_checks": [],
+                "failed_case_count": 0,
+                "critical_failure_count": 0,
+            },
+            {
+                "report_id": "eval-111111111111",
+                "created_at": "2026-04-26T01:00:00Z",
+                "baseline_release_id": "baseline",
+                "candidate_release_id": "candidate-bad",
+                "policy": "default",
+                "decision": "block",
+                "failed_checks": ["quality_score"],
+                "failed_case_count": 1,
+                "critical_failure_count": 1,
+            },
+        ]
+    )
+
+    exit_code = cli_main(["--list-reports", "--report-limit", "1"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert [report["report_id"] for report in payload["reports"]] == [
+        "eval-222222222222"
+    ]
+    assert captured.err == ""
+
+
+def test_cli_rejects_invalid_report_limit(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
+
+    exit_code = cli_main(["--list-reports", "--report-limit", "0"])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "--report-limit must be greater than 0" in captured.err
+
+
 def test_cli_shows_full_report_by_id(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(store, "REPORTS_DIR", tmp_path)
     response = client.post(
