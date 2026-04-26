@@ -1,44 +1,12 @@
 # EvalGate AI
 
-EvalGate AI is a policy-driven release gate for model-backed services. It evaluates a candidate release against a baseline, applies explicit policy thresholds, and returns a final decision of `promote` or `block` with a machine-readable audit trail.
+EvalGate AI is a policy-driven release gate for model-backed services. It compares a candidate release against a trusted baseline, applies explicit policy thresholds, and returns a `promote` or `block` decision with a machine-readable audit trail.
 
-The repository is being built as internal platform tooling for release engineering and MLOps teams.
+It is shaped like internal platform tooling for release engineering and MLOps teams: deterministic local runs, CI integration, report artifacts, policy snapshots, failure triage, and indexed release history.
 
-## Goals
+## Quick Demo
 
-- compare baseline and candidate releases against the same fixture set
-- detect regressions in latency, reliability, quality, and cost proxy
-- apply explicit release policies instead of ad hoc judgment
-- generate decision reports that CI and operators can consume
-
-## Current Status
-
-The current implementation includes:
-
-- FastAPI app plus `POST /releases/evaluate`
-- deterministic sample baseline and candidate services
-- AI-risk fixture set and threshold policy logic
-- test harness
-- lightweight CI and security checks
-
-The higher-level product writeup lives in [docs/overview.md](docs/overview.md).
-
-## Current Capabilities
-
-- sample baseline and candidate services for model-backed release scenarios
-- deterministic AI-risk fixture evaluator
-- config-backed policy profiles for different release risk tolerances
-- comparison and threshold policy engine
-- persisted JSON reports with policy checks and metric deltas
-- FastAPI endpoint for service integration
-- CLI entrypoint for local runs and CI
-- automated CI check for config validation and known-good release gating
-- manual GitHub Actions release-gate workflow
-- passing and blocked demo release paths
-
-## Development
-
-Install dependencies:
+Install the package in editable mode:
 
 PowerShell:
 
@@ -56,13 +24,88 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
+Run the end-to-end demo:
+
+```bash
+evalgate --demo
+```
+
+The demo evaluates one passing candidate and one blocking candidate, persists both reports, prints a release summary, prints blocked-release triage, and shows recent blocked history from the report index.
+
+Look for these sections in the output:
+
+- `EvalGate Demo`
+- `EvalGate Report Summary`
+- `EvalGate Failure Triage`
+- `Recent Blocked Candidate History`
+
+The higher-level product and architecture writeup lives in [docs/overview.md](docs/overview.md).
+
+## What It Does
+
+- compares baseline and candidate releases against the same AI-risk fixture set
+- detects regressions in latency, reliability, quality, and cost proxy
+- applies config-backed policy profiles instead of ad hoc release judgment
+- persists JSON decision reports with policy checks, metric deltas, and per-case evidence
+- summarizes reports for CI comments, dashboards, and release notes
+- triages blocked releases by failed checks, failed cases, severity, and risk category
+- indexes report history for candidate, baseline, policy, and decision review
+
+## Operator Workflow
+
+Run a passing release gate:
+
+```bash
+evalgate --baseline baseline --candidate candidate-good --policy default
+```
+
+Run a blocking release gate:
+
+```bash
+evalgate --baseline baseline --candidate candidate-bad --policy default
+```
+
+Summarize a saved report:
+
+```bash
+evalgate --summarize-report reports/<report_id>.json --summary-format markdown
+```
+
+Triage a blocked report:
+
+```bash
+evalgate --triage-report <report_id> --summary-format markdown
+```
+
+Review recent blocked history:
+
+```bash
+evalgate --list-reports --report-candidate candidate-bad --report-decision block
+```
+
+Inspect the full report artifact:
+
+```bash
+evalgate --show-report <report_id>
+```
+
+The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
+
+## Development
+
+Run tests:
+
+```bash
+pytest
+```
+
 Run the API locally:
 
 ```bash
 uvicorn api.main:app --reload
 ```
 
-Run a sample evaluation:
+Run a sample API evaluation:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/releases/evaluate \
@@ -73,28 +116,6 @@ curl -X POST http://127.0.0.1:8000/releases/evaluate \
     "policy": "default"
   }'
 ```
-
-Run tests:
-
-```bash
-pytest
-```
-
-Run a local CLI evaluation:
-
-```bash
-evalgate --baseline baseline --candidate candidate-good --policy default
-```
-
-The CLI exits with `0` for `promote`, `1` for `block`, and `2` for invalid input such as an unsupported policy.
-
-Run the built-in end-to-end demo:
-
-```bash
-evalgate --demo
-```
-
-The demo evaluates a passing candidate and a blocking candidate, prints the passing report summary, prints the blocked report triage, and shows recent blocked history for `candidate-bad`.
 
 Validate local EvalGate configuration:
 
